@@ -15,7 +15,7 @@
   <meta name="description" content="Deine Haltestellen auf einen Blick. Echtzeit-Abfahrten, Ankünfte und intelligente Lieblingsverbindungen.">
   <title>Haltestellen – Dein ÖPNV auf einen Blick</title>
   <!--
-    Haltestellen v6 – privater, nichtkommerzieller Open-Source-Prototyp (MIT-Lizenz).
+    Haltestellen v7 – privater, nichtkommerzieller Open-Source-Prototyp (MIT-Lizenz).
     Daten: Transitous/MOTIS 2, OpenStreetMap und die jeweiligen Verkehrsanbieter.
     Transitous erlaubt leichte Prototyp-Tests. Bei Veröffentlichung gelten
     https://transitous.org/api/ : Quellcode, Attribution, Website mit Kontakt,
@@ -125,7 +125,20 @@
     .trip-priority .icon { width:15px; height:15px; }
     .trip-priority.manual { color:var(--accent); background:#253f36; border-color:#3b6752; }
     .trip-priority.automatic { color:var(--blue); background:#22354a; border-color:#355673; }
-    .card-main-row { display:flex; align-items:baseline; gap:8px; }
+    .card-main-row { display:flex; align-items:baseline; gap:8px; min-width:0; }
+    .card-platform { display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; margin-left:auto; align-self:center; padding:5px 9px; border:1px solid #3b5061; border-radius:9px; background:#223346; color:#d3e1f1; white-space:nowrap; font-size:12px; line-height:1.15; font-weight:800; font-variant-numeric:tabular-nums; }
+    .card-platform.changed { color:var(--red); border-color:#87444d; background:#3b252e; }
+    .platform-indicator.changed { color:var(--red); font-weight:800; }
+    .db-panel { margin-top:12px; }
+    .db-panel .db-data-status { margin-top:5px; }
+    .db-data-status.success { color:var(--accent); }
+    .db-data-status.error { color:var(--red); }
+    .db-help-link { color:var(--blue); text-decoration:underline; text-underline-offset:3px; }
+    .db-checkbox { display:flex; align-items:center; gap:9px; margin:15px 0; color:var(--muted); font-size:12px; }
+    .db-checkbox input { width:17px; height:17px; accent-color:var(--accent); }
+    .db-modal-actions { display:flex; flex-wrap:wrap; align-items:center; gap:9px; margin-top:15px; }
+    .db-modal-actions .btn { flex:1 0 auto; }
+    #db-test-result { margin:11px 0 0; font-size:12px; color:var(--muted); }
     .mins-big { font-size:clamp(38px,4.6vw,49px); font-weight:790; line-height:1; letter-spacing:-2.4px; }
     .mins-unit { color:var(--muted); font-size:15px; font-weight:600; }
     .card-trip { display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:9px; min-width:0; }
@@ -282,6 +295,7 @@
       .card-body-btn { padding:7px 15px 12px; }
       .mins-big { font-size:41px; letter-spacing:-2px; }
       .mins-unit { font-size:13px; }
+      .card-platform { padding:5px 8px; font-size:11px; }
       .card-trip { margin-top:7px; gap:6px; }
       .card-arrival { margin-top:5px; }
       .card-top .icon-btn { width:34px; height:34px; }
@@ -309,6 +323,13 @@
     const STOPTIMES_ENDPOINT = '/api/v6/stoptimes';
     const PLAN_ENDPOINT = '/api/v6/plan';
     const GEOCODE_ENDPOINT = '/api/v1/geocode';
+    // Offizielle DB Timetables (IRIS), per nutzereigenem Zugang aktiviert.
+    const DB_API = 'https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1';
+    const DB_SETTINGS_KEY = 'haltestellen.db-timetables.v1';
+    const DB_PLAN_CACHE_MS = 6 * 60 * 60 * 1000;
+    const DB_BOARD_CACHE_MS = 150 * 1000;
+    const DB_REQUEST_SPACING_MS = 1100; // unter 60 API-Aufrufen / Minute
+    let dbQueue = Promise.resolve(), dbNextSlot = 0;
     const STORAGE_KEY = 'nextstop.v1';
     const AUTO_WINDOW = 30 * 60 * 1000;
     const PRIORITY_WINDOWS = [15,30,45,60,90,120];
@@ -411,6 +432,15 @@
         return {stops, routes, priorityMinutes};
       } catch { return {stops:[],routes:[],priorityMinutes:DEFAULT_PRIORITY_MINUTES}; }
     }
+    function readDBSettings() {
+      try {
+        const stored = sessionStorage.getItem(DB_SETTINGS_KEY) || localStorage.getItem(DB_SETTINGS_KEY);
+        if(!stored)return {clientId:'',apiKey:'',remember:false};
+        const value=JSON.parse(stored);
+        return {clientId:String(value.clientId||''),apiKey:String(value.apiKey||''),
+          remember:Boolean(localStorage.getItem(DB_SETTINGS_KEY))};
+      } catch {return {clientId:'',apiKey:'',remember:false};}
+    }
     const saved = readSaved();
     const state = {
       stops:saved.stops, routes:saved.routes, priorityMinutes:saved.priorityMinutes, view:'home', activeStopId:null, detailTab:'departures',
@@ -418,7 +448,9 @@
       errors:new Map(), arrivalErrors:new Map(), timestamps:new Map(),
       modal:null, selectedCandidate:null, searchResults:[], searchTerm:'', searchState:'idle', searchToken:0,
       busy:false, migrating:false, planCache:new Map(), lastRefresh:0, lastApiRequestAt:null, pendingPriorityRefresh:false, searchTimer:null, toastTimer:null,
-      pendingImport:null, dataRevision:0
+      pendingImport:null, dataRevision:0,
+      dbSettings:readDBSettings(), dbStatus:'', dbUnavailable:false, dbError:'',
+      dbStationLookup:new Map(), dbPlanCache:new Map(), dbBoardCache:new Map(), dbInFlight:new Map()
     };
     function persist() {
       try {localStorage.setItem(STORAGE_KEY, JSON.stringify({stops:state.stops,routes:state.routes,priorityMinutes:state.priorityMinutes}));}
@@ -434,7 +466,7 @@
         format:BACKUP_FORMAT,
         version:BACKUP_VERSION,
         exportedAt:new Date().toISOString(),
-        stops:state.stops.map(s=>({id:s.id,name:s.name,city:s.city||'',lat:s.lat??null,lon:s.lon??null,api:s.api||'legacy'})),
+        stops:state.stops.map(s=>({id:s.id,name:s.name,city:s.city||'',lat:s.lat??null,lon:s.lon??null,api:s.api||'legacy',evaNo:s.evaNo||null})),
         routes:state.routes.map(r=>({id:r.id,from:r.from,to:r.to,mode:r.mode||'all'})),
         priorityMinutes:state.priorityMinutes
       };
@@ -468,7 +500,7 @@
         const latitude=Number(s.lat),longitude=Number(s.lon);
         return {id,name,city,lat:s.lat!=null&&Number.isFinite(latitude)&&latitude>=-90&&latitude<=90?latitude:null,
           lon:s.lon!=null&&Number.isFinite(longitude)&&longitude>=-180&&longitude<=180?longitude:null,
-          api:s.api==='transitous'?'transitous':'legacy'};
+          api:s.api==='transitous'?'transitous':'legacy',evaNo:/^\d{6,9}$/.test(String(s.evaNo||''))?String(s.evaNo):null};
       });
       const routeKeys=new Set(),routeIds=new Set();
       const routes=data.routes.map(r=>{
@@ -508,6 +540,7 @@
       state.dataRevision++;
       state.stops=incoming.stops;state.routes=incoming.routes;state.priorityMinutes=incoming.priorityMinutes;
       state.boards.clear();state.arrivals.clear();state.projections.clear();state.loading.clear();state.arriving.clear();
+      dbResetCache();
       state.errors.clear();state.arrivalErrors.clear();state.timestamps.clear();state.planCache.clear();
       state.busy=false;state.migrating=false;state.pendingPriorityRefresh=false;state.lastRefresh=0;
       state.activeStopId=null;state.view='home';state.pendingImport=null;
@@ -593,7 +626,13 @@
       const place=item.place||{};
       const actual=arrival ? place.arrival||place.scheduledArrival : place.departure||place.scheduledDeparture;
       const planned=arrival ? place.scheduledArrival||actual : place.scheduledDeparture||actual;
-      const delta=(item.realTime === true && toTime(actual)!=null && toTime(planned)!=null)
+      // Transitous markiert manche Prognosen nicht mit realTime=true. Eine
+      // ausdrücklich vom Plan abweichende Zeit ist dennoch eine Prognose
+      // und muss als Verspätung (rot) erkennbar sein.
+      const differs=toTime(actual)!==null && toTime(planned)!==null
+        && Math.abs(toTime(actual)-toTime(planned))>=30000;
+      const realtime=Boolean(item.realTime===true || differs);
+      const delta=(realtime && toTime(actual)!=null && toTime(planned)!=null)
         ? Math.round((toTime(actual)-toTime(planned))/1000) : null;
       const stops=arrival ? (item.previousStops||[]) : (item.nextStops||[]);
       return {
@@ -607,7 +646,7 @@
         // Echtzeit und Fahrplanzeit strikt getrennt halten, damit eine
         // planmäßige Ankunft nicht fälschlich als Ist-Ankunft erscheint.
         stopovers:stops.map(p=>({stop:{id:p.stopId||p.id||null,name:p.name,lat:p.lat,lon:p.lon},arrival:p.arrival||null,plannedArrival:p.scheduledArrival||null,_realTime:typeof p.realTime==='boolean'?p.realTime:null})),
-        _realTime:!!item.realTime
+        _realTime:realtime, _inferredPrediction:differs && item.realTime!==true
       };
     }
     function normalizeBoard(data,arrival=false) {
@@ -642,11 +681,11 @@
       const actual=toTime(entry?.when ?? entry?.departure);
       const planned=toTime(entry?.plannedWhen ?? entry?.plannedDeparture);
       const value=actual??planned;
-      const live=Boolean(entry?._realTime && actual!==null && planned!==null);
+      const live=Boolean((entry?._realTime || (actual!==null && planned!==null && Math.abs(actual-planned)>=30000)) && actual!==null && planned!==null);
       const delay=live?Math.round((actual-planned)/60000):null;
       const status=live?(delay>0?'late':'ontime'):'unknown';
       const title=live
-        ? (delay>0?`Abfahrt: ${delay} Min. verspätet (Echtzeit)`:'Abfahrt: pünktlich (Echtzeit)')
+        ? (delay>0?`Abfahrt: ${delay} Min. später als Fahrplan (${entry?._inferredPrediction?'Prognose':'Echtzeit'})`:'Abfahrt: pünktlich (Echtzeit)')
         : (value ? 'Abfahrtszeit ohne bestätigte Echtzeitinformation' : 'Abfahrtszeit unbekannt');
       return {time:fmtTime(value),status,title};
     }
@@ -659,7 +698,9 @@
       const found=target?stops.find(s=>sameStop(s.stop,target)):null;
       const arrivalStop=found||(!target?stops[stops.length-1]:null);
       const actual=toTime(arrivalStop?.arrival),planned=toTime(arrivalStop?.plannedArrival);
-      const live=Boolean((arrivalStop?._realTime ?? entry?._realTime) && actual!==null && planned!==null);
+      const live=Boolean(actual!==null && planned!==null && (
+        arrivalStop?._realTime===true || (arrivalStop?._realTime==null && entry?._realTime===true)
+        || Math.abs(actual-planned)>=30000));
       const delay=live?Math.round((actual-planned)/60000):null;
       const status=live ? (delay>0?'late':'ontime') : 'unknown';
       const value=actual??planned;
@@ -685,9 +726,24 @@
       if (min <= -1) return `<span class="delay">${min} Min früher</span>`;
       return '<span class="delay">Pünktlich</span>';
     }
+    function platformInfo(entry) {
+      const clean = raw => String(raw??'').trim().replace(/^(?:gleis|gl\.|bahnsteig|steig|stg\.|platform)\s*/i,'').trim();
+      const actual=clean(entry?.platform), planned=clean(entry?.plannedPlatform);
+      const value=actual||planned;
+      const rail=lineClass(entry)==='rail', prefix=rail?'Gl.':'Stg.';
+      const changed=Boolean(actual && planned && norm(actual)!==norm(planned));
+      return {value,prefix,changed,planned,label:value?`${prefix} ${value}`:'',
+        title:changed?`${rail?'Gleis':'Steig'} geändert: geplant ${planned}, jetzt ${actual}`:
+          value?`${rail?'Gleis':'Steig'} ${value}`:'Gleis / Steig unbekannt'};
+    }
+    function renderCardPlatform(entry) {
+      const p=platformInfo(entry);
+      if(!p.value)return '';
+      return `<span class="card-platform${p.changed?' changed':''}" title="${esc(p.title)}" aria-label="${esc(p.title)}">${esc(p.label)}</span>`;
+    }
     function livePlatform(entry) {
-      const platform = entry?.platform ?? entry?.plannedPlatform;
-      return platform ? `Gleis / Steig ${esc(platform)}` : 'Steig unbekannt';
+      const p=platformInfo(entry);
+      return p.value?`<span class="platform-indicator ${p.changed?'changed':''}" title="${esc(p.title)}">${esc(p.label)}</span>`:'Gleis / Steig unbekannt';
     }
     function getDirectTarget(entry, from, target) {
       if (!target || !from || String(from.id) === String(target.id)) return false;
@@ -759,6 +815,297 @@
         ? `Letzter API-Anfrageversuch: ${new Date(state.lastApiRequestAt).toLocaleString('de-DE')}`
         : 'Es wurde noch keine API-Anfrage gestartet.';
     }
+
+    // ---- DB Timetables: plan+fchg per EVA, niemals als heimliches API-Proxy ----
+    function dbIsReady() {
+      return Boolean(state.dbSettings.clientId && state.dbSettings.apiKey && !state.dbUnavailable && navigator.onLine);
+    }
+    function dbResetCache() {
+      state.dbStationLookup.clear();state.dbPlanCache.clear();state.dbBoardCache.clear();state.dbInFlight.clear();
+      state.dbUnavailable=false;state.dbError='';state.dbStatus='';
+    }
+    async function dbAcquireSlot() {
+      const step=dbQueue.then(async()=>{
+        const wait=Math.max(0,dbNextSlot-Date.now());
+        if(wait)await new Promise(done=>setTimeout(done,wait));
+        dbNextSlot=Date.now()+DB_REQUEST_SPACING_MS;
+      });
+      dbQueue=step.catch(()=>{});
+      return step;
+    }
+    function dbParseXML(body) {
+      const xml=new DOMParser().parseFromString(body,'application/xml');
+      if(xml.querySelector('parsererror'))throw new Error('Ungültige DB-XML-Antwort.');
+      return xml;
+    }
+    async function dbFetchXML(path,timeout=12000) {
+      if(!dbIsReady())throw new Error('DB-Zugang nicht eingerichtet oder nicht erreichbar.');
+      await dbAcquireSlot();
+      if(!dbIsReady())throw new Error('DB-Zugang zurzeit deaktiviert.');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);
+      state.lastApiRequestAt=Date.now();updateApiRequestLabel();
+      try {
+        const response=await fetch(DB_API+path,{
+          method:'GET',mode:'cors',credentials:'omit',cache:'no-store',signal:controller.signal,
+          headers:{'DB-Client-Id':state.dbSettings.clientId,'DB-Api-Key':state.dbSettings.apiKey,'Accept':'application/xml'}
+        });
+        if(!response.ok){const error=new Error(`DB HTTP ${response.status}`);error.status=response.status;throw error;}
+        return dbParseXML(await response.text());
+      } catch(error) {
+        // Wenn CORS/Authentifizierung grundsätzlich fehlschlägt: nicht bei
+        // jeder gespeicherten Haltestelle weiter Anfragen und Fehlermeldungen auslösen.
+        if(error instanceof TypeError || error?.status===401 || error?.status===403) {
+          state.dbUnavailable=true;
+          state.dbStatus=error instanceof TypeError
+            ? 'DB blockiert direkte Browserzugriffe (CORS/Netzwerk). Transitous bleibt aktiv.'
+            : 'DB-Zugang abgewiesen. Client-ID und API-Key prüfen.';
+          state.dbError=state.dbStatus;
+        }
+        throw error;
+      } finally {clearTimeout(timer);}
+    }
+    function dbLocalDateTime(ms) {
+      const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'})
+        .formatToParts(new Date(ms));
+      const obj=Object.fromEntries(parts.filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
+      return {date:`${obj.year.slice(-2)}${obj.month}${obj.day}`,hour:obj.hour};
+    }
+    function dbTimeToISO(raw) {
+      const t=String(raw||'');
+      if(!/^\d{10}$/.test(t))return null;
+      const yr=2000+Number(t.slice(0,2)),mo=Number(t.slice(2,4)),day=Number(t.slice(4,6));
+      const h=Number(t.slice(6,8)),min=Number(t.slice(8,10));
+      if(mo<1||mo>12||day<1||day>31||h>23||min>59)return null;
+      const guess=Date.UTC(yr,mo-1,day,h,min);
+      // Die DB-Zeit ist Europe/Berlin (auch wenn der Browser in einer anderen
+      // Zeitzone läuft). Zonen-Offset am Datum der Fahrt berechnen.
+      const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})
+        .formatToParts(new Date(guess));
+      const v=Object.fromEntries(parts.filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+      const offset=Date.UTC(v.year,v.month-1,v.day,v.hour,v.minute)-guess;
+      return new Date(guess-offset).toISOString();
+    }
+    function dbAttributes(element) {
+      return element?Object.fromEntries([...element.attributes].map(a=>[a.name,a.value])):{};
+    }
+    function dbFindChild(element,name) {
+      return element?[...element.children].find(c=>c.tagName===name)||null:null;
+    }
+    async function dbGetEva(stop) {
+      if(/^\d{6,9}$/.test(String(stop.evaNo||'')))return String(stop.evaNo);
+      if(state.dbStationLookup.has(stop.id))return state.dbStationLookup.get(stop.id);
+      if(!dbIsReady())return null;
+      try {
+        const xml=await dbFetchXML('/station/'+encodeURIComponent(stop.name.trim()));
+        const matches=[...xml.querySelectorAll('station')]
+          .map(e=>({eva:e.getAttribute('eva'),name:e.getAttribute('name')}))
+          .filter(s=>/^\d{6,9}$/.test(s.eva||''));
+        const exact=matches.filter(s=>stationKey(s.name)===stationKey(stop.name));
+        const chosen=exact.length===1?exact[0]:null;
+        const eva=chosen?.eva||null;
+        state.dbStationLookup.set(stop.id,eva);
+        // Uneindeutige oder unpassende Bahnhöfe nicht einfach zuordnen.
+        if(eva){stop.evaNo=eva;persist();}
+        return eva;
+      } catch(error) {
+        if(error?.status===404){state.dbStationLookup.set(stop.id,null);return null;}
+        throw error;
+      }
+    }
+    async function dbPlan(eva,slot) {
+      const key=`${eva}:${slot.date}:${slot.hour}`,cached=state.dbPlanCache.get(key);
+      if(cached && Date.now()-cached.at<DB_PLAN_CACHE_MS)return cached.xml;
+      try {
+        const xml=await dbFetchXML(`/plan/${eva}/${slot.date}/${slot.hour}`);
+        if(state.dbPlanCache.size>250)state.dbPlanCache.clear();
+        state.dbPlanCache.set(key,{at:Date.now(),xml});
+        return xml;
+      } catch(error) {
+        if(error?.status===404){state.dbPlanCache.set(key,{at:Date.now(),xml:null});return null;}
+        throw error;
+      }
+    }
+    function dbParseTimetable(planXMLs,updatesXML) {
+      const records=new Map();
+      const merge=(xml)=>{
+        if(!xml)return;
+        for(const node of xml.querySelectorAll('s')) {
+          const id=node.getAttribute('id');if(!id)continue;
+          const old=records.get(id)||{id,tl:{},ar:{},dp:{}};
+          for(const tag of ['tl','ar','dp']){
+            const child=dbFindChild(node,tag);
+            if(child)old[tag]={...old[tag],...dbAttributes(child)};
+          }
+          records.set(id,old);
+        }
+      };
+      for(const xml of planXMLs)merge(xml);
+      merge(updatesXML);
+      const result={departures:[],arrivals:[]};
+      for(const record of records.values()) {
+        const tl=record.tl,category=String(tl.c||'Zug').toUpperCase();
+        const line=String(tl.l||'').trim(),number=String(tl.n||'').trim();
+        const name=line && !norm(line).startsWith(norm(category)) ? `${category} ${line}`
+          : line || (number?`${category} ${number}`:category);
+        const product=/^(ICE|IC|EC|EN|NJ|RJ|TGV|FLX)/.test(category)?'nationalExpress'
+          : /^RE/.test(category)?'regionalExpress':/^S$/.test(category)?'suburban':'regional';
+        for(const [tag,arrival,key] of [['dp',false,'departures'],['ar',true,'arrivals']]) {
+          const ev=record[tag];
+          const planned=dbTimeToISO(ev.pt||ev.ct),actual=dbTimeToISO(ev.ct)||planned;
+          if(!planned||!actual)continue;
+          const path=String(ev.cpth||ev.ppth||'').split('|').map(x=>x.trim()).filter(Boolean);
+          const platform=ev.cp||ev.pp||null,plannedPlatform=ev.pp||null;
+          const live=Boolean(ev.ct);
+          const delta=live?Math.round((toTime(actual)-toTime(planned))/1000):null;
+          const entry={when:actual,plannedWhen:planned,delay:delta,platform,plannedPlatform,
+            line:{name,id:`db:${record.id}`,product},
+            direction:arrival?'':(path[path.length-1]||'Ziel unbekannt'),
+            provenance:arrival?(path[0]||'Herkunft unbekannt'):null,
+            stopovers:arrival?[]:path.map(p=>({stop:{id:null,name:p},arrival:null,plannedArrival:null,_realTime:null})),
+            cancelled:String(ev.cs||'').toLowerCase()==='c',
+            _realTime:live,_dbId:record.id,_dbSource:true,_dbPlatformChanged:Boolean(ev.cp&&ev.pp&&norm(ev.cp)!==norm(ev.pp))};
+          result[key].push(entry);
+        }
+      }
+      result.departures.sort((a,b)=>timeOf(a)-timeOf(b));
+      result.arrivals.sort((a,b)=>timeOf(a)-timeOf(b));
+      return result;
+    }
+    async function dbLoadBoard(stop) {
+      if(!dbIsReady())return null;
+      const cached=state.dbBoardCache.get(stop.id);
+      if(cached&&Date.now()-cached.at<DB_BOARD_CACHE_MS)return cached.board;
+      if(state.dbInFlight.has(stop.id))return state.dbInFlight.get(stop.id);
+      const promise=(async()=>{
+        const eva=await dbGetEva(stop);
+        if(!eva)return null;
+        const now=Date.now(),hasManual=state.routes.some(r=>r.from===stop.id);
+        const offsets=hasManual && state.priorityMinutes>60?[-2,-1,0,1,2]:[-1,0,1,2];
+        const unique=new Map();
+        for(const n of offsets){const slot=dbLocalDateTime(now+n*3600000);unique.set(`${slot.date}/${slot.hour}`,slot);}
+        const plans=[];
+        // Plan-Endpunkte sind statisch und werden mehrere Stunden gehalten.
+        for(const slot of unique.values()){
+          if(!dbIsReady())break;
+          try {const xml=await dbPlan(eva,slot);if(xml)plans.push(xml);}
+          catch(error){if(error?.status===429)break;if(state.dbUnavailable)break;console.info('DB-Sollfahrplan nicht verfügbar',error.message);}
+        }
+        if(!dbIsReady())return null;
+        let changes=null;
+        try {changes=await dbFetchXML('/fchg/'+eva);}
+        catch(error){if(state.dbUnavailable)return null;console.info('DB-Fahrplanänderungen nicht verfügbar',error.message);}
+        if(!plans.length&&!changes)return null;
+        const board=dbParseTimetable(plans,changes);
+        state.dbBoardCache.set(stop.id,{at:Date.now(),board});
+        state.dbStatus=`DB-Bahnhofsdaten geladen · ${stop.name}`;
+        return board;
+      })().finally(()=>state.dbInFlight.delete(stop.id));
+      state.dbInFlight.set(stop.id,promise);
+      return promise;
+    }
+    function dbMatchScore(original,db) {
+      if(lineClass(original)!=='rail'||lineClass(db)!=='rail')return -1;
+      const p1=scheduledTimeOf(original),p2=scheduledTimeOf(db);
+      if(p1==null||p2==null)return -1;
+      const diff=Math.abs(p1-p2);
+      if(diff>120000)return -1;
+      const a=norm(lineName(original)).replace(/\s/g,''),b=norm(lineName(db)).replace(/\s/g,'');
+      if(a && b && a===b)return 100-Math.round(diff/1000);
+      const dst1=stationKey(original.direction),dst2=stationKey(db.direction);
+      if(diff<=45000&&dst1&&dst1===dst2)return 40-Math.round(diff/1000);
+      return -1;
+    }
+    function dbMergeEntries(original,extra) {
+      // DB-Prognose hat Vorrang. Ein reiner DB-Sollfahrplan überschreibt
+      // vorhandene, bestätigte Transitous-Echtzeitinformationen nicht.
+      const useDBTime=extra._realTime && toTime(extra.when)!=null;
+      const planned=extra.plannedWhen||original.plannedWhen;
+      const actual=useDBTime?extra.when:(original.when||extra.when);
+      const platform=extra._dbPlatformChanged?extra.platform:
+        (original.platform||extra.platform||original.plannedPlatform);
+      return {...original,when:actual,plannedWhen:planned,
+        delay:useDBTime?Math.round((toTime(actual)-toTime(planned))/1000):original.delay,
+        _realTime:useDBTime||original._realTime,
+        _inferredPrediction:useDBTime?false:original._inferredPrediction,
+        platform,plannedPlatform:extra.plannedPlatform||original.plannedPlatform,
+        cancelled:extra.cancelled||original.cancelled,_dbSource:true};
+    }
+    function dbOverlayBoard(transitous,dbItems) {
+      const all=transitous.slice(),used=new Set();
+      for(const db of dbItems) {
+        let winner=-1,best=-1;
+        for(let i=0;i<all.length;i++) {
+          if(used.has(i))continue;
+          const score=dbMatchScore(all[i],db);
+          if(score>best){winner=i;best=score;}
+        }
+        if(winner>=0){all[winner]=dbMergeEntries(all[winner],db);used.add(winner);}
+        else {all.push(db);used.add(all.length-1);}
+      }
+      return all.filter(d=>timeOf(d)!=null).sort((a,b)=>timeOf(a)-timeOf(b));
+    }
+    async function dbEnhanceStop(stop,id,revision,arrival=false) {
+      if(!dbIsReady())return;
+      try {
+        const db=await dbLoadBoard(stop);
+        if(!db||revision!==state.dataRevision||!stopById(id))return;
+        const map=arrival?state.arrivals:state.boards;
+        if(!map.has(id))return;
+        map.set(id,dbOverlayBoard(map.get(id),arrival?db.arrivals:db.departures));
+        renderApp();
+      } catch(error) {
+        if(!state.dbUnavailable && error?.status===429)state.dbStatus='DB-Anfragelimit erreicht. Transitous bleibt aktiv.';
+        else if(!state.dbUnavailable)state.dbStatus='DB momentan nicht verfügbar. Transitous bleibt aktiv.';
+        console.info('DB-Daten nicht verfügbar, Transitous bleibt aktiv:',error.message);
+        renderApp();
+      }
+    }
+    function saveDBSettings() {
+      const clientId=(el('db-client-id')?.value||'').trim();
+      const apiKey=(el('db-api-key')?.value||'').trim();
+      const remember=Boolean(el('db-remember')?.checked);
+      if(!clientId||!apiKey||clientId.length>250||apiKey.length>250||/[\r\n]/.test(clientId+apiKey)) {
+        toast('Bitte gültige Client-ID und API-Key eingeben.',true);return false;
+      }
+      const value=JSON.stringify({clientId,apiKey});
+      try {
+        if(remember){localStorage.setItem(DB_SETTINGS_KEY,value);sessionStorage.removeItem(DB_SETTINGS_KEY);}
+        else {sessionStorage.setItem(DB_SETTINGS_KEY,value);localStorage.removeItem(DB_SETTINGS_KEY);}
+      } catch {toast('DB-Einstellungen konnten nicht gespeichert werden.',true);return false;}
+      state.dbSettings={clientId,apiKey,remember};
+      dbResetCache();
+      return true;
+    }
+    function dbSettingsSaved() {
+      if(!saveDBSettings())return;
+      closeModal();renderApp();toast('DB-Zugang eingerichtet. Zugdaten werden zusätzlich abgefragt.');
+      refreshAll(true);
+      if(state.activeStopId)loadArrivals(state.activeStopId);
+    }
+    function dbSettingsCleared() {
+      try {localStorage.removeItem(DB_SETTINGS_KEY);sessionStorage.removeItem(DB_SETTINGS_KEY);}
+      catch {}
+      state.dbSettings={clientId:'',apiKey:'',remember:false};dbResetCache();
+      state.boards.clear();state.arrivals.clear();state.projections.clear();
+      closeModal();renderApp();toast('DB-Anbindung entfernt; Transitous bleibt aktiv.');
+      refreshAll(true);
+    }
+    async function dbTestSettings() {
+      if(!saveDBSettings())return;
+      const label=el('db-test-result');if(label)label.textContent='DB-Zugang wird geprüft …';
+      try {
+        const test=await dbFetchXML('/station/'+encodeURIComponent(state.stops[0]?.name||'Wismar'));
+        const n=test.querySelectorAll('station').length;
+        state.dbStatus=`DB-Browserzugriff erfolgreich (${n} Bahnhofstreffer).`;
+        if(label)label.textContent=`DB erreichbar. ${n} Bahnhofstreffer. Zugdaten werden beim Aktualisieren ergänzt.`;
+        toast('DB-Zugriff erfolgreich.');
+      } catch(error) {
+        const description=state.dbStatus|| (error?.status?`DB HTTP ${error.status}`:error.message);
+        if(label)label.textContent=`DB-Test fehlgeschlagen: ${description}`;
+        toast('DB-Test fehlgeschlagen. Transitous bleibt aktiv.',true);
+      }
+    }
+
     async function fetchJSON(path, params = {}, timeout = 15000) {
       state.lastApiRequestAt=Date.now();
       updateApiRequestLabel();
@@ -872,8 +1219,24 @@
         state.boards.set(id,board);
         state.timestamps.set(id,Date.now());
         renderApp();
-        await loadManualProjections(id,board,revision);
-      } catch(error) {if(revision===state.dataRevision&&stopById(id)) state.errors.set(id,statusText(error));}
+        await dbEnhanceStop(stop,id,revision,false);
+        await loadManualProjections(id,state.boards.get(id)||board,revision);
+      } catch(error) {
+        if(revision===state.dataRevision&&stopById(id)){
+          let recovered=false;
+          if(dbIsReady()){
+            try {
+              const alternative=await dbLoadBoard(stop);
+              if(alternative?.departures?.length){
+                state.boards.set(id,alternative.departures);state.timestamps.set(id,Date.now());
+                state.errors.delete(id);recovered=true;
+                renderApp();await loadManualProjections(id,alternative.departures,revision);
+              }
+            } catch(dbError){console.info('DB-Fallback gescheitert:',dbError.message);}
+          }
+          if(!recovered)state.errors.set(id,statusText(error));
+        }
+      }
       finally {if(revision===state.dataRevision){state.loading.delete(id);renderApp();}}
     }
     async function loadArrivals(id) {
@@ -888,8 +1251,24 @@
         // Zeitgrenze = jetzt + 90 Min.; alte Ankünfte werden clientseitig entfernt.
         const time=new Date(Date.now()+BOARD_DURATION_MIN*60000).toISOString();
         const data=await fetchJSON(STOPTIMES_ENDPOINT,{stopId:id,n:String(STOPTIMES_COUNT),arriveBy:'true',direction:'EARLIER',time,window:'5400',fetchStops:'true',language:'de'},18000);
-        if(revision===state.dataRevision&&stopById(id)) state.arrivals.set(id,normalizeBoard(data,true));
-      } catch(error) {if(revision===state.dataRevision&&stopById(id)) state.arrivalErrors.set(id,statusText(error));}
+        if(revision===state.dataRevision&&stopById(id)) {
+          state.arrivals.set(id,normalizeBoard(data,true));
+          await dbEnhanceStop(stop,id,revision,true);
+        }
+      } catch(error) {
+        if(revision===state.dataRevision&&stopById(id)){
+          let recovered=false;
+          if(dbIsReady()){
+            try {
+              const alternative=await dbLoadBoard(stop);
+              if(alternative?.arrivals?.length){
+                state.arrivals.set(id,alternative.arrivals);state.arrivalErrors.delete(id);recovered=true;
+              }
+            } catch(dbError){console.info('DB-Ankünfte nicht verfügbar:',dbError.message);}
+          }
+          if(!recovered)state.arrivalErrors.set(id,statusText(error));
+        }
+      }
       finally {if(revision===state.dataRevision){state.arriving.delete(id);renderApp();}}
     }
     function replacementScore(original,candidate) {
@@ -987,6 +1366,7 @@
       state.stops=state.stops.filter(s=>s.id!==id);
       state.routes=state.routes.filter(r=>r.from!==id&&r.to!==id);
       state.boards.delete(id);state.arrivals.delete(id);state.projections.clear();state.planCache.clear();
+      state.dbStationLookup.delete(id);state.dbBoardCache.delete(id);
       if(state.activeStopId===id){state.activeStopId=null;state.view='home';}
       persist();renderApp();toast('Haltestelle entfernt.');
     }
@@ -1057,7 +1437,7 @@
           : selection.kind==='automatic'
           ? `<span class="trip-priority automatic" title="${esc(priorityText)}" aria-label="${esc(priorityText)}">${icon('arrows','sm')}</span>` : '';
         cardMain=`${selection.kind==='normal'?'<div class="card-overline">NÄCHSTE ABFAHRT</div>':''}
-          <div class="card-main-row"><span class="mins-big" data-time-countdown="${timeOf(dep)}">${remaining<=0?'Jetzt':remaining}</span>${remaining>0?'<span class="mins-unit">Minuten</span>':''}</div>
+          <div class="card-main-row"><span class="mins-big" data-time-countdown="${timeOf(dep)}">${remaining<=0?'Jetzt':remaining}</span>${remaining>0?'<span class="mins-unit">Minuten</span>':''}${renderCardPlatform(dep)}</div>
           <div class="card-trip"><span class="line-badge ${lineClass(dep)}">${esc(lineName(dep))}</span>${priority}<span class="trip-direction">${esc(destinationOf(dep))}</span><span class="trip-time ${depTime.status}" title="${esc(depTime.title)}" aria-label="${esc('Abfahrt '+depTime.time+'. '+depTime.title)}">${esc(depTime.time)}</span></div>
           ${renderCardArrival(dep,selection.target)}`;
       } else if(!navigator.onLine) {
@@ -1092,6 +1472,10 @@
             <button type="button" class="btn small ghost" data-action="export-backup">${icon('download','sm')} Export</button>
             <button type="button" class="btn small ghost" data-action="import-backup">${icon('upload','sm')} Import</button>
           </div></section>
+        <section class="backup-panel db-panel" aria-label="Deutsche Bahn Echtzeitdaten"><div><h3>DB-Echtzeit für Züge</h3>
+          <p>${state.dbSettings.apiKey?'DB-Zugang eingerichtet; Transitous bleibt für Busse und als Rückfall aktiv.':'Optional: Verspätungen und Gleiswechsel aus der offiziellen DB Timetables API.'}</p>
+          ${state.dbStatus?`<p class="db-data-status ${state.dbUnavailable?'error':'success'}">${esc(state.dbStatus)}</p>`:''}</div>
+          <div class="backup-actions"><button type="button" class="btn small ghost" data-action="db-settings">${icon('train','sm')} ${state.dbSettings.apiKey?'DB bearbeiten':'DB einrichten'}</button></div></section>
         <div class="install-end"><button type="button" class="btn soft" data-action="install-app" ${appIsStandalone()?'disabled aria-disabled="true"':''}>${icon(appIsStandalone()?'check':'download','sm')} ${appIsStandalone()?'App installiert':'App Installieren'}</button>
           <p class="install-help-note">Für die Installation HTTPS benötigt. Die Oberfläche ist anschließend offline verfügbar; Echtzeitdaten brauchen Internet.</p>
         </div>`;
@@ -1140,7 +1524,7 @@
           <button type="button" class="icon-btn" data-action="remove-stop" data-id="${esc(stop.id)}" aria-label="Haltestelle entfernen" title="Haltestelle entfernen">${icon('trash','sm')}</button></div></div>
         <div class="detail-metrics">${renderMetric('Nächste Abfahrt',next,dep ? priority:'Noch keine Fahrt')}
           ${renderMetric('Aktuelle Uhrzeit',fmtTime(Date.now()),'Lokale Zeit')}</div>
-        ${renderBoard(stop)}<div class="notice">${icon('info')}<div>Die Daten kommen vom öffentlichen Verkehrsdatenanbieter. Einzelne Verkehrsunternehmen, Echtzeitinformationen oder Zwischenhalte können fehlen. Angezeigte Zeiten bitte vor Fahrtantritt prüfen.</div></div>`;
+        ${renderBoard(stop)}<div class="notice">${icon('info')}<div>Daten von Transitous und, falls eingerichtet und erreichbar, aus DB Timetables. Einzelne Echtzeitinformationen oder Zwischenhalte können fehlen. Angezeigte Zeiten bitte vor Fahrtantritt prüfen.</div></div>`;
     }
     function renderRoutes() {
       const routes=state.routes.length?`<div class="route-list">${state.routes.map(r=>`<article class="route-card">
@@ -1310,7 +1694,7 @@
       if(sortGesture){appRenderDeferred=true;return;}
       appRenderDeferred=false;
       const app=el('app');if(!app)return;
-      app.innerHTML=`<div class="app-layout">${renderSidebar()}<main class="main">${renderMobileHeader()}${renderTopline()}${state.view==='detail'?renderDetail():state.view==='routes'?renderRoutes():renderHome()}<footer class="api-attribution">Daten: <a href="https://transitous.org/" target="_blank" rel="noopener noreferrer">Transitous</a> · <a href="https://transitous.org/sources/" target="_blank" rel="noopener noreferrer">Datenquellen</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap-Mitwirkende</a><br>Gemeinschaftsdienst, nicht für kommerzielle Nutzung. Echtzeitdaten je nach Anbieter.</footer></main></div>${renderBottomNav()}`;
+      app.innerHTML=`<div class="app-layout">${renderSidebar()}<main class="main">${renderMobileHeader()}${renderTopline()}${state.view==='detail'?renderDetail():state.view==='routes'?renderRoutes():renderHome()}<footer class="api-attribution">Daten: <a href="https://transitous.org/" target="_blank" rel="noopener noreferrer">Transitous</a> · <a href="https://developers.deutschebahn.com/db-api-marketplace/apis/product/timetables" target="_blank" rel="noopener noreferrer">DB Timetables (CC BY 4.0)</a> · <a href="https://transitous.org/sources/" target="_blank" rel="noopener noreferrer">Datenquellen</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap-Mitwirkende</a><br>Gemeinschaftsdienst, nicht für kommerzielle Nutzung. Echtzeitdaten je nach Anbieter.</footer></main></div>${renderBottomNav()}`;
     }
     function openModal(type,id) {
       state.modal={type,id:id||null};state.searchToken++;
@@ -1371,6 +1755,19 @@
           <div class="form-group"><label class="form-label" for="route-mode">Verkehrsmittel</label><select class="form-select" id="route-mode" name="mode">${MODES.map(([id,name])=>`<option value="${esc(id)}">${esc(name)}</option>`).join('')}</select></div>
           <p class="small-note">Es werden nur direkte Fahrten berücksichtigt, die zum gewählten Verkehrsmittel passen.</p>
           <div class="modal-actions" style="margin-top:20px"><button class="btn ghost" type="button" data-action="close-modal">Abbrechen</button><button class="btn primary" type="submit">${icon('star','sm')} Verbindung sichern</button></div></form>`;
+      } else if(type==='db-settings') {
+        kicker='DB ECHTZEIT';heading='Deutsche Bahn einrichten';
+        body=`<p class="modal-help">Optionaler Zugriff auf die <a class="db-help-link" href="https://developers.deutschebahn.com/db-api-marketplace/apis/product/timetables" target="_blank" rel="noopener noreferrer">offizielle DB Timetables API</a> für Züge (auch andere Betreiber, soweit verfügbar). Dazu den kostenlosen Nutzungsplan abonnieren und eigene Zugangsdaten eintragen.</p>
+          <div class="form-group"><label class="form-label" for="db-client-id">DB-Client-ID</label>
+            <input class="form-input" id="db-client-id" autocomplete="off" spellcheck="false" value="${esc(state.dbSettings.clientId)}" placeholder="Client ID"></div>
+          <div class="form-group"><label class="form-label" for="db-api-key">DB-Api-Key</label>
+            <input class="form-input" id="db-api-key" type="password" autocomplete="off" spellcheck="false" value="${esc(state.dbSettings.apiKey)}" placeholder="API Key"></div>
+          <label class="db-checkbox"><input type="checkbox" id="db-remember" ${state.dbSettings.remember?'checked':''}><span>Auf diesem Gerät speichern (sonst nur für diese Browsersitzung)</span></label>
+          <p class="small-note">Schlüssel werden ausschließlich auf deinem Gerät gespeichert, nicht exportiert und nicht in die App-Datei geschrieben. Nutze nur deine eigenen Schlüssel auf einem vertrauenswürdigen Gerät. Die DB kann direkte Browseranfragen durch CORS blockieren. Dann bleibt Transitous aktiv.</p>
+          <p class="small-note">Bei falscher Bahnhofszuordnung im Bearbeiten-Dialog der Haltestelle die DB-EVA-Nummer manuell eintragen.</p>
+          <div class="db-modal-actions"><button type="button" class="btn ghost" data-action="db-test">DB-Zugang testen</button><button type="button" class="btn primary" data-action="db-save">Speichern</button></div>
+          ${state.dbSettings.apiKey?`<div class="db-modal-actions"><button type="button" class="btn ghost" data-action="db-clear">DB-Zugang entfernen</button></div>`:''}
+          <p id="db-test-result" role="status">${esc(state.dbStatus)}</p>`;
       } else if(type==='import-backup') {
         const incoming=state.pendingImport;
         if(!incoming){closeModal();return;}
@@ -1400,9 +1797,12 @@
           <div class="modal-actions"><button type="button" class="btn primary" data-action="close-modal">Verstanden</button></div>`;
       } else if(type==='edit-city') {
         const stop=stopById(state.modal.id);if(!stop){closeModal();return;}
-        kicker='HALTESTELLE ANPASSEN';heading='Stadt bearbeiten';
+        kicker='HALTESTELLE ANPASSEN';heading='Haltestelle bearbeiten';
         body=`<p class="modal-help">Haltestelle: <strong>${esc(stop.name)}</strong></p><div class="form-group"><label class="form-label" for="city-input">Stadt / Ort</label>
           <input class="form-input" id="city-input" autocomplete="off" maxlength="100" value="${esc(stop.city||'')}"></div>
+          <div class="form-group"><label class="form-label" for="db-eva-input">DB-Bahnhofsnummer (EVA, optional)</label>
+          <input class="form-input" id="db-eva-input" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="z. B. 8013266" value="${esc(stop.evaNo||'')}">
+          <p class="small-note">Nur für die DB-Zugdaten. Bus- und Tram-Haltestellen können das Feld leer lassen.</p></div>
           <div class="modal-actions"><button class="btn ghost" type="button" data-action="close-modal">Abbrechen</button><button class="btn primary" type="button" data-action="save-city">${icon('check','sm')} Speichern</button></div>`;
       }
       el('modal-root').innerHTML=`<div class="overlay" data-overlay="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
@@ -1437,7 +1837,7 @@
       const city=(el('city-input')?.value||guessCity(candidate)).trim().slice(0,100)||guessCity(candidate);
       if(old) {
         const oldId=old.id;
-        Object.assign(old,{id,name:String(candidate.name),city,lat:candidate.lat,lon:candidate.lon,api:'transitous'});
+        Object.assign(old,{id,name:String(candidate.name),city,lat:candidate.lat,lon:candidate.lon,api:'transitous',evaNo:null});
         state.errors.delete(oldId);
         for(const route of state.routes) {
           if(route.from===oldId)route.from=id;
@@ -1452,7 +1852,16 @@
     function saveCity() {
       const stop=stopById(state.modal?.id);if(!stop)return;
       const value=(el('city-input')?.value||'').trim();if(!value){toast('Bitte Stadt oder Ort angeben.',true);return;}
-      stop.city=value.slice(0,100);persist();closeModal();renderApp();toast('Ort aktualisiert.');
+      const eva=(el('db-eva-input')?.value||'').trim();
+      if(eva && !/^\d{6,9}$/.test(eva)){toast('Die DB-EVA muss 6 bis 9 Ziffern haben.',true);return;}
+      const changed=String(stop.evaNo||'')!==eva;
+      stop.city=value.slice(0,100);stop.evaNo=eva||null;
+      if(changed) {
+        dbResetCache();
+        state.boards.delete(stop.id);state.arrivals.delete(stop.id);
+      }
+      persist();closeModal();renderApp();toast('Haltestelle aktualisiert.');
+      if(changed)loadStop(stop.id);
     }
     function saveRoute(event) {
       event.preventDefault();
@@ -1471,7 +1880,7 @@
       if(event.target?.dataset?.overlay==='true'){closeModal();return;}
       const node=event.target.closest('[data-action]');if(!node)return;
       const action=node.dataset.action,id=node.dataset.id;
-      if(['nav','add-stop','add-route','open-stop','edit-city','relink-stop','remove-stop','remove-route','close-modal','back-search','select-candidate','save-stop','save-city','detail-tab','refresh','export-backup','import-backup','confirm-import','install-app'].includes(action)) event.preventDefault();
+      if(['nav','add-stop','add-route','open-stop','edit-city','relink-stop','remove-stop','remove-route','close-modal','back-search','select-candidate','save-stop','save-city','detail-tab','refresh','export-backup','import-backup','confirm-import','install-app','db-settings','db-save','db-test','db-clear'].includes(action)) event.preventDefault();
       switch(action) {
         case 'nav':showView(node.dataset.view);break;
         case 'add-stop':openModal('add-stop');break;
@@ -1492,6 +1901,10 @@
         case 'import-backup':el('backup-file-input')?.click();break;
         case 'confirm-import':confirmBackupImport();break;
         case 'install-app':startInstallation();break;
+        case 'db-settings':openModal('db-settings');break;
+        case 'db-save':dbSettingsSaved();break;
+        case 'db-test':dbTestSettings();break;
+        case 'db-clear':dbSettingsCleared();break;
       }
     });
     document.addEventListener('input',event=>{
