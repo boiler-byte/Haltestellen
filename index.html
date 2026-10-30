@@ -15,7 +15,7 @@
   <meta name="description" content="Deine Haltestellen auf einen Blick. Echtzeit-Abfahrten, Ankünfte und intelligente Lieblingsverbindungen.">
   <title>Haltestellen – Dein ÖPNV auf einen Blick</title>
   <!--
-    Haltestellen v7 – privater, nichtkommerzieller Open-Source-Prototyp (MIT-Lizenz).
+    Haltestellen v9 – privater, nichtkommerzieller Open-Source-Prototyp (MIT-Lizenz).
     Daten: Transitous/MOTIS 2, OpenStreetMap und die jeweiligen Verkehrsanbieter.
     Transitous erlaubt leichte Prototyp-Tests. Bei Veröffentlichung gelten
     https://transitous.org/api/ : Quellcode, Attribution, Website mit Kontakt,
@@ -101,7 +101,7 @@
     .btn.full { width:100%; }
     .btn.small { min-height:36px; padding:8px 12px; font-size:12px; }
     .stop-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
-    .stop-card { overflow:hidden; border:1px solid #2a394c; border-radius:18px; background:linear-gradient(155deg, #1a2738, #151e2c 72%); min-height:0; display:flex; flex-direction:column; transition:border-color .15s, transform .15s, box-shadow .15s; }
+    .stop-card { position:relative; isolation:isolate; overflow:hidden; border:1px solid #2a394c; border-radius:18px; background:linear-gradient(155deg, #1a2738, #151e2c 72%); min-height:0; display:flex; flex-direction:column; transition:border-color .15s, transform .15s, box-shadow .15s; }
     .stop-card:hover { border-color:#4a6672; transform:translateY(-2px); box-shadow:0 16px 38px rgba(0,0,0,.14); }
     .stop-card[data-index="1"] { background:linear-gradient(155deg,#24283a,#171e2d 72%); }
     .stop-card[data-index="2"] { background:linear-gradient(155deg,#1b2e35,#151f2c 72%); }
@@ -197,7 +197,7 @@
     .detail-tab-count { display:inline-grid; place-items:center; min-width:22px; height:20px; padding:0 6px; border-radius:7px; background:#25364a; color:var(--muted); font-size:10px; font-weight:800; font-variant-numeric:tabular-nums; }
     .segmented button.active .detail-tab-count { background:#39554c; color:var(--accent); }
     .segmented button { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
-    .board-row { display:grid; align-items:center; grid-template-columns:72px minmax(0,1fr) minmax(75px,auto); gap:13px; min-height:78px; padding:14px 22px; border-bottom:1px solid #243043; }
+    .board-row { display:grid; align-items:center; grid-template-columns:76px minmax(0,1fr) minmax(75px,auto); gap:13px; min-height:78px; padding:14px 22px; border-bottom:1px solid #243043; }
     .board-row:last-child { border-bottom:0; }
     .board-row.highlight { background:rgba(165,255,184,.055); }
     .board-row.cancelled { opacity:.62; }
@@ -287,7 +287,7 @@
     .sr-only { position:absolute!important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     @media (max-width:1120px) { .app-layout { grid-template-columns:207px minmax(0,1fr); gap:28px; padding:25px; } .sidebar-caption { margin-top:57px; } }
     @media (max-width:850px) { .app-layout { display:block; padding:0 22px 105px; } .sidebar { display:none; } .main { padding-top:0; } .mobile-header { display:flex; justify-content:space-between; align-items:center; padding:21px 0 17px; } .mobile-header .brand { font-size:23px; } .mobile-header .brand-mark { width:35px; height:35px; flex-basis:35px; border-radius:11px; } .topline { margin-bottom:17px; } .bottom-nav { z-index:20; position:fixed; bottom:0; left:0; right:0; display:flex; align-items:stretch; justify-content:space-around; gap:4px; padding:9px 11px calc(9px + env(safe-area-inset-bottom)); background:rgba(13,21,33,.94); border-top:1px solid #2b3b50; backdrop-filter:blur(17px); } .bottom-nav button { background:transparent; border:0; color:var(--muted); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; flex:1; min-width:0; padding:5px; font-size:10px; font-weight:720; } .bottom-nav button.active { color:var(--accent); } .bottom-nav .icon { width:21px; height:21px; } .toast-root { right:15px; bottom:88px; } }
-    @media (max-width:600px) { .app-layout { padding:0 15px 104px; } .topline { margin-bottom:17px; } .date-label { font-size:11px; } .section-heading { margin-top:29px; align-items:flex-end; } .section-title { font-size:19px; } .section-actions .btn { padding:11px 12px; font-size:12px; } .section-actions .btn .icon { width:16px; height:16px; } .stop-grid { grid-template-columns:1fr; gap:13px; } .stop-card { min-height:215px; } .card-top { padding-top:20px; } .mins-big { font-size:56px; } .detail-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .detail-metric { padding:13px 11px; } .detail-metric strong { font-size:20px; } .detail-metric .mini-label { font-size:10px; } .detail-metric .mini-sub { font-size:10px; } .board-panel-top { padding:15px; } .board-row { grid-template-columns:57px minmax(0,1fr) 65px; gap:10px; padding:13px 14px; } .board-when strong { font-size:17px; } .board-bottom { padding:13px 15px; } .line-badge { min-width:38px; font-size:10px; } .detail-head h1 { font-size:31px; letter-spacing:-1px; } .detail-tools .icon-btn { width:35px; height:35px; } .route-card { padding:15px; } .route-primary { font-size:12px; } .route-symbol { width:38px; height:38px; } .modal { border-radius:21px; } .modal-top { padding:23px 20px 16px; } .modal-body { padding:0 20px 23px; } }
+    @media (max-width:600px) { .app-layout { padding:0 15px 104px; } .topline { margin-bottom:17px; } .date-label { font-size:11px; } .section-heading { margin-top:29px; align-items:flex-end; } .section-title { font-size:19px; } .section-actions .btn { padding:11px 12px; font-size:12px; } .section-actions .btn .icon { width:16px; height:16px; } .stop-grid { grid-template-columns:1fr; gap:13px; } .stop-card { min-height:215px; } .card-top { padding-top:20px; } .mins-big { font-size:56px; } .detail-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; } .detail-metric { padding:13px 11px; } .detail-metric strong { font-size:20px; } .detail-metric .mini-label { font-size:10px; } .detail-metric .mini-sub { font-size:10px; } .board-panel-top { padding:15px; } .board-row { grid-template-columns:minmax(0,57px) minmax(0,1fr) minmax(0,65px); gap:10px; padding:13px 14px; } .board-when strong { font-size:17px; } .board-bottom { padding:13px 15px; } .line-badge { min-width:38px; font-size:10px; } .detail-head h1 { font-size:31px; letter-spacing:-1px; } .detail-tools .icon-btn { width:35px; height:35px; } .route-card { padding:15px; } .route-primary { font-size:12px; } .route-symbol { width:38px; height:38px; } .modal { border-radius:21px; } .modal-top { padding:23px 20px 16px; } .modal-body { padding:0 20px 23px; } }
     @media (max-width:600px) { .routes-heading { flex-wrap:wrap; align-items:center; gap:12px; } .routes-heading .routes-page-title { flex:1 1 100%; } .routes-heading .btn { margin-left:auto; } }
     @media (max-width:600px) {
       .stop-grid { gap:9px; }
@@ -307,6 +307,45 @@
       .backup-actions { width:100%; }
       .backup-actions .btn { flex:1; }
     }
+    /* Bahnhofsfotos sind rein dekorative Hintergründe: kein zusätzlicher Platzbedarf. */
+    .station-photo-image { position:absolute; z-index:0; inset:0; width:100%; height:100%; object-fit:cover; object-position:center; opacity:0; pointer-events:none; transition:opacity .22s ease; }
+    .stop-card.has-photo .station-photo-image { opacity:.5; }
+    .stop-card.has-photo::before { content:""; position:absolute; z-index:1; inset:0; pointer-events:none; background:linear-gradient(90deg,rgba(9,15,26,.87),rgba(9,15,26,.56)),linear-gradient(0deg,rgba(9,15,26,.68),transparent 80%); }
+    .stop-card > .card-top, .stop-card > .card-body-btn { position:relative; z-index:2; }
+    .stop-card.has-photo .card-city, .stop-card.has-photo .card-overline, .stop-card.has-photo .card-source-note { color:#cbd5e5; }
+    /* Bahnhofsfoto und Kennzahlen teilen sich eine größere Hero-Fläche. */
+    .detail-head { position:relative; isolation:isolate; display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto 1fr auto; gap:12px; min-height:268px; padding:23px 23px 28px; border:1px solid #2c3b4d; border-radius:19px; overflow:hidden; background:linear-gradient(155deg,#1a2738,#101825); }
+    .detail-head.has-photo .station-photo-image { opacity:.7; }
+    .detail-head.has-photo::before { content:""; position:absolute; z-index:1; inset:0; pointer-events:none; background:linear-gradient(180deg,rgba(8,13,24,.65),rgba(8,13,24,.14) 45%,rgba(8,13,24,.68) 100%),linear-gradient(90deg,rgba(8,13,24,.35),transparent 85%); }
+    .detail-head > :not(.station-photo-image):not(.station-photo-credit) { position:relative; z-index:2; }
+    .detail-heading { min-width:0; grid-column:1; grid-row:1; }
+    .detail-head > .detail-tools { grid-column:2; grid-row:1; }
+    .detail-head > .detail-metrics { grid-column:1 / -1; grid-row:3; align-self:end; margin-top:0; }
+    .detail-head .detail-metric { background:rgba(12,22,36,.58); border-color:rgba(193,209,225,.24); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px); }
+    .station-photo-credit { display:none; position:absolute; z-index:3; bottom:5px; right:10px; max-width:65%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:9px; color:#e8edf6; text-decoration:none; padding:1px 5px; border-radius:5px; background:rgba(8,15,25,.77); }
+    .detail-head.has-photo .station-photo-credit { display:block; }
+    @media (max-width:600px) { .detail-head { min-height:245px; padding:18px 15px 25px; gap:10px; } .detail-head > .detail-metrics { gap:8px; } .detail-head .detail-metric { padding:12px 10px; } }
+    /* Die oft langen Zugnummern dürfen die Spalten nicht überlagern. */
+    .board-row { min-width:0; }
+    .board-row .line-badge { display:inline-flex; align-items:center; justify-content:center; max-width:100%; min-width:0; width:100%; box-sizing:border-box; white-space:normal; padding:4px 5px; }
+    .board-row .badge-label { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; max-width:100%; overflow:hidden; overflow-wrap:anywhere; word-break:break-word; text-align:center; line-height:1.27; }
+    .board-row .board-middle, .board-row .board-when { min-width:0; }
+    a.board-row { color:inherit; text-decoration:none; transition:background-color .15s ease; }
+    a.board-row:hover, a.board-row:focus-visible { background:rgba(140,190,255,.09); outline-offset:-3px; }
+    a.board-row:hover .board-destination { text-decoration:underline; text-decoration-color:#8cbeff; text-underline-offset:3px; }
+    .photo-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    .photo-actions .btn { flex:1 0 auto; }
+    .photo-file-input { display:block; width:100%; font:inherit; font-size:12px; color:var(--muted); margin:9px 0 12px; }
+    .photo-file-input::file-selector-button { padding:8px 11px; margin-right:9px; border:1px solid var(--line-strong); background:var(--surface-3); border-radius:9px; color:var(--text); font:inherit; cursor:pointer; }
+    .photo-preview { position:relative; overflow:hidden; width:100%; height:88px; border-radius:10px; background:#101c29; border:1px solid var(--line); margin:6px 0 10px; }
+    .photo-preview img { width:100%; height:100%; object-fit:cover; display:none; }
+    .photo-preview.has-photo img { display:block; }
+    .photo-preview-placeholder { display:grid; place-items:center; height:100%; color:var(--muted-2); font-size:12px; }
+    .photo-preview.has-photo .photo-preview-placeholder { display:none; }
+    .photo-status { margin:9px 0 0; color:var(--muted); font-size:11px; line-height:1.5; }
+    .photo-status.error { color:var(--red); }
+    .eva-search-results { display:grid; gap:6px; margin-top:9px; }
+    .eva-search-results button { border:1px solid var(--line-strong); border-radius:9px; background:var(--surface-3); color:var(--text); padding:9px; text-align:left; font-size:12px; }
     @media (max-width:530px) { .priority-window { flex-direction:column; align-items:stretch; padding:16px; } .priority-window .form-select { width:100%; min-width:0; } .topline { gap:7px; } .top-right { gap:6px; } .status-online { padding:7px 9px; font-size:10px; } }
     @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.001ms!important; transition-duration:.001ms!important; scroll-behavior:auto!important; } }
   </style>
@@ -326,6 +365,12 @@
     const STOPTIMES_ENDPOINT = '/api/v6/stoptimes';
     const PLAN_ENDPOINT = '/api/v6/plan';
     const GEOCODE_ENDPOINT = '/api/v1/geocode';
+    const RAILWAY_PHOTO_INDEX = 'https://api.railway-stations.org/photoStationsByCountry/de';
+    const PHOTO_DB_NAME = 'haltestellen-stationphotos-v1';
+    const PHOTO_DB_STORE = 'stationPhotos';
+    const PHOTO_MAX_WIDTH = 512;
+    const PHOTO_WEBP_QUALITY = .88;
+    const BAHN_SEARCH_URL = 'https://www.bahn.de/buchung/fahrplan/suche';
     // Offizielle DB Timetables (IRIS), per nutzereigenem Zugang aktiviert.
     const DB_API = 'https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1';
     const DB_SETTINGS_KEY = 'haltestellen.db-timetables.v1';
@@ -459,10 +504,335 @@
       try {localStorage.setItem(STORAGE_KEY, JSON.stringify({stops:state.stops,routes:state.routes,priorityMinutes:state.priorityMinutes}));}
       catch { toast('Speichern nicht möglich. Prüfe die Browser-Einstellungen.', true); }
     }
+    // Bilder liegen absichtlich getrennt von der JSON-Sicherung in IndexedDB.
+    let stationPhotoDbPromise = null, railwayPhotoCatalogPromise = null;
+    const stationPhotoCache = new Map(), stationPhotoLoads = new Map();
     const BACKUP_FORMAT = 'haltestellen-backup';
     const BACKUP_VERSION = 1;
     const MAX_BACKUP_BYTES = 1024 * 1024;
     let deferredInstallPrompt = null;
+
+    // ---- Bahnhofsfotos: lokal, per Station, max. 512px breit, WebP 88%. ----
+    function openStationPhotoDb() {
+      if(stationPhotoDbPromise)return stationPhotoDbPromise;
+      stationPhotoDbPromise=new Promise((resolve,reject)=>{
+        if(!('indexedDB' in window)){reject(new Error('IndexedDB ist in diesem Browser nicht verfügbar.'));return;}
+        const req=indexedDB.open(PHOTO_DB_NAME,1);
+        req.onupgradeneeded=()=>{
+          if(!req.result.objectStoreNames.contains(PHOTO_DB_STORE))req.result.createObjectStore(PHOTO_DB_STORE,{keyPath:'id'});
+        };
+        req.onsuccess=()=>resolve(req.result);
+        req.onerror=()=>reject(req.error||new Error('Bildspeicher konnte nicht geöffnet werden.'));
+        req.onblocked=()=>reject(new Error('Bildspeicher wird durch einen anderen Tab blockiert.'));
+      }).catch(error=>{stationPhotoDbPromise=null;throw error;});
+      return stationPhotoDbPromise;
+    }
+    async function stationPhotoRecord(id) {
+      const db=await openStationPhotoDb();
+      return new Promise((resolve,reject)=>{
+        const req=db.transaction(PHOTO_DB_STORE,'readonly').objectStore(PHOTO_DB_STORE).get(String(id));
+        req.onsuccess=()=>resolve(req.result||null);
+        req.onerror=()=>reject(req.error||new Error('Bild konnte nicht gelesen werden.'));
+      });
+    }
+    async function storeStationPhoto(record) {
+      const db=await openStationPhotoDb();
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction(PHOTO_DB_STORE,'readwrite');
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error||new Error('Bild konnte nicht gespeichert werden.'));
+        tx.objectStore(PHOTO_DB_STORE).put(record);
+      });
+      cacheStationPhoto(record.id,record);
+    }
+    async function deleteStationPhoto(id) {
+      const db=await openStationPhotoDb();
+      await new Promise((resolve,reject)=>{
+        const tx=db.transaction(PHOTO_DB_STORE,'readwrite');
+        tx.oncomplete=resolve;
+        tx.onerror=()=>reject(tx.error||new Error('Bild konnte nicht gelöscht werden.'));
+        tx.objectStore(PHOTO_DB_STORE).delete(String(id));
+      });
+      cacheStationPhoto(id,null);
+    }
+    function cacheStationPhoto(id,record) {
+      id=String(id);
+      const prior=stationPhotoCache.get(id);
+      if(prior?.url)URL.revokeObjectURL(prior.url);
+      stationPhotoCache.set(id,record?.blob instanceof Blob?{record,url:URL.createObjectURL(record.blob)}:null);
+      applyStationPhoto(id);
+    }
+    function photoCredit(record) {
+      if(!record)return '';
+      if(record.source!=='railway-stations')return 'Eigenes Foto';
+      const creator=record.photographer||'railway-stations.org';
+      return `Foto: ${creator}${record.license?' · '+record.license:''}`;
+    }
+    function applyStationPhoto(id) {
+      const image=stationPhotoCache.get(String(id));
+      document.querySelectorAll('[data-station-photo]').forEach(node=>{
+        if(node.dataset.stationPhoto!==String(id))return;
+        if(image?.url){
+          if(node.getAttribute('src')!==image.url)node.setAttribute('src',image.url);
+          node.parentElement.classList.add('has-photo');
+          node.title=photoCredit(image.record);
+        } else {
+          node.removeAttribute('src');node.parentElement.classList.remove('has-photo');node.removeAttribute('title');
+        }
+      });
+      if(state.modal?.type==='edit-city'&&state.modal.id===String(id)) {
+        const preview=el('photo-preview-image'),previewBox=el('photo-edit-preview');
+        if(preview&&previewBox){
+          if(image?.url){preview.src=image.url;previewBox.classList.add('has-photo');}
+          else {preview.removeAttribute('src');previewBox.classList.remove('has-photo');}
+        }
+        const information=el('photo-credit-info');
+        if(information)information.textContent=image?.record?photoCredit(image.record):'Noch kein Bild gespeichert.';
+        const remove=el('photo-remove-btn');if(remove)remove.disabled=!image;
+      }
+      const creditLink=el('station-photo-credit');
+      if(creditLink&&state.activeStopId===String(id)) {
+        const record=image?.record;
+        creditLink.textContent=record?photoCredit(record):'';
+        const source=record?.sourceUrl;
+        if(source&&/^https:\/\//i.test(source))creditLink.href=source;
+        else creditLink.removeAttribute('href');
+      }
+    }
+    function ensureStationPhoto(id) {
+      id=String(id);
+      if(stationPhotoCache.has(id)) {applyStationPhoto(id);return Promise.resolve(stationPhotoCache.get(id));}
+      if(stationPhotoLoads.has(id))return stationPhotoLoads.get(id);
+      const promise=stationPhotoRecord(id).then(record=>{
+        // An in der Zwischenzeit neu gespeichertes Bild nicht mit altem Lesewert überschreiben.
+        if(!stationPhotoCache.has(id))cacheStationPhoto(id,record);
+        return stationPhotoCache.get(id);
+      }).catch(error=>{console.info('Bildspeicher nicht verfügbar:',error.message);return null;})
+        .finally(()=>stationPhotoLoads.delete(id));
+      stationPhotoLoads.set(id,promise);return promise;
+    }
+    function hydrateStationPhotos() {
+      const ids=new Set([...document.querySelectorAll('[data-station-photo]')].map(n=>n.dataset.stationPhoto));
+      for(const id of ids)ensureStationPhoto(id);
+      if(state.modal?.type==='edit-city')ensureStationPhoto(state.modal.id);
+    }
+    async function pictureAsWebP(blob) {
+      if(!(blob instanceof Blob)||!blob.type.startsWith('image/'))throw new Error('Bitte eine Bilddatei wählen.');
+      if(blob.size>20*1024*1024)throw new Error('Das Bild darf maximal 20 MB groß sein.');
+      const temp=URL.createObjectURL(blob);
+      let picture;
+      try {
+        picture=await new Promise((resolve,reject)=>{
+          const img=new Image();
+          img.onload=()=>resolve(img);
+          img.onerror=()=>reject(new Error('Bild kann nicht geöffnet werden.'));
+          img.src=temp;
+        });
+        const width=picture.naturalWidth,height=picture.naturalHeight;
+        if(!width||!height)throw new Error('Ungültige Bildgröße.');
+        const scale=Math.min(1,PHOTO_MAX_WIDTH/width);
+        const canvas=document.createElement('canvas');
+        canvas.width=Math.max(1,Math.round(width*scale));
+        canvas.height=Math.max(1,Math.round(height*scale));
+        const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Bildbearbeitung nicht verfügbar.');
+        ctx.drawImage(picture,0,0,canvas.width,canvas.height);
+        const result=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',PHOTO_WEBP_QUALITY));
+        if(!result||result.type!=='image/webp')throw new Error('Dieser Browser kann keine WebP-Dateien erstellen.');
+        return result;
+      } finally {URL.revokeObjectURL(temp);}
+    }
+    function photoMessage(message,error=false) {
+      const label=el('photo-status');
+      if(label){label.textContent=message;label.classList.toggle('error',error);}
+      else if(error)console.info('Bahnhofsfoto:',message);
+    }
+    async function acceptStationPhoto(stop,blob,info={}) {
+      const converted=await pictureAsWebP(blob);
+      if(!stopById(stop.id))return;
+      await storeStationPhoto({id:String(stop.id),blob:converted,source:info.source||'local',
+        sourceUrl:info.sourceUrl||'',photographer:info.photographer||'',
+        license:info.license||'',licenseUrl:info.licenseUrl||'',savedAt:Date.now()});
+      photoMessage(`Bild gespeichert: WebP · ${Math.round(converted.size/1024)} KB · max. ${PHOTO_MAX_WIDTH} px breit.`);
+    }
+    async function railwayStationCatalog() {
+      if(railwayPhotoCatalogPromise)return railwayPhotoCatalogPromise;
+      railwayPhotoCatalogPromise=(async()=>{
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),22000);
+        try {
+          const response=await fetch(RAILWAY_PHOTO_INDEX,{method:'GET',mode:'cors',credentials:'omit',signal:controller.signal});
+          if(!response.ok)throw new Error('Bahnhofsfotos: HTTP '+response.status);
+          const catalog=await response.json();
+          if(!Array.isArray(catalog?.stations)||typeof catalog.photoBaseUrl!=='string')throw new Error('Unbekanntes Datenformat bei railway-stations.org.');
+          return catalog;
+        } finally {clearTimeout(timer);}
+      })().catch(error=>{railwayPhotoCatalogPromise=null;throw error;});
+      return railwayPhotoCatalogPromise;
+    }
+    function photoStationScore(item,stop) {
+      if(!Array.isArray(item?.photos)||!item.photos.some(p=>p?.path||p?.url))return -1;
+      const target=stationKey(stop.name),label=stationKey(item.title||item.name||item.stationName);
+      const eva=String(stop.evaNo||'');
+      const remoteEva=String(item.eva||item.evaNo||item.evaNumber||item.evaNr||item.uicCode||'');
+      const dist=distanceMeters(stop,item);
+      if(eva&&remoteEva===eva&&(!Number.isFinite(dist)||dist<2000))return 1000-Math.min(dist/100,50);
+      if(!label||!target)return -1;
+      const equal=label===target;
+      const similar=(label.startsWith(target+' ')||target.startsWith(label+' '))&&label.length>=5&&target.length>=5;
+      if(Number.isFinite(dist)) {
+        if(equal&&dist<=2500)return 600-Math.round(dist/30);
+        if(similar&&dist<=350)return 350-Math.round(dist/20);
+        return -1;
+      }
+      // Bei fehlenden Koordinaten nur eindeutige exakte Namen akzeptieren.
+      return equal?240:-1;
+    }
+    function matchPhotoStation(catalog,stop) {
+      const ranked=catalog.stations.map(item=>({item,score:photoStationScore(item,stop)}))
+        .filter(x=>x.score>=220).sort((a,b)=>b.score-a.score);
+      if(!ranked.length)return null;
+      if(ranked.length>1&&ranked[0].score-ranked[1].score<35)return null;
+      return ranked[0].item;
+    }
+    function railwayPhotoUrl(catalog,photo) {
+      const path=String(photo?.path||photo?.url||'').trim();
+      const base=new URL(String(catalog.photoBaseUrl));
+      if(base.protocol!=='https:'||base.hostname!=='api.railway-stations.org')throw new Error('Unerwartete Bild-URL der Foto-API.');
+      const url=/^https?:\/\//i.test(path)?new URL(path):
+        path.startsWith('/photos/')?new URL(path,base.origin):
+        new URL(base.href.replace(/\/+$/,'')+'/'+path.replace(/^\/+/,''));
+      if(url.protocol!=='https:'||url.hostname!=='api.railway-stations.org')throw new Error('Unsichere Bild-URL der Foto-API.');
+      return url.href;
+    }
+    async function fetchStationPhoto(stop,automatic=false) {
+      if(!stop||!navigator.onLine)return;
+      const existing=await ensureStationPhoto(stop.id);
+      // Beim Anlegen keine bereits selbst gewählten Bilder überschreiben.
+      if(automatic&&existing)return;
+      if(!automatic)photoMessage('Suche bei railway-stations.org …');
+      try {
+        const catalog=await railwayStationCatalog();
+        const item=matchPhotoStation(catalog,stop);
+        if(!item){if(!automatic)photoMessage('Kein eindeutig zuordenbares Bahnhofsfoto gefunden.');return;}
+        const photo=item.photos.find(p=>p?.path||p?.url);
+        const url=railwayPhotoUrl(catalog,photo);
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),18000);
+        let response;
+        try{response=await fetch(url,{method:'GET',mode:'cors',credentials:'omit',signal:controller.signal});}
+        finally{clearTimeout(timer);}
+        if(!response.ok)throw new Error('Foto nicht abrufbar (HTTP '+response.status+').');
+        const blob=await response.blob();
+        const licenseId=photo.licenseId||photo.license||item.licenseId||item.license;
+        const license=catalog.licenses?.find(p=>String(p.id)===String(licenseId));
+        const photographer=photo.photographer?.name||photo.photographer||item.photographer?.name||item.photographer||'';
+        // Ein während des Downloads manuell gesetztes Bild niemals überschreiben.
+        if(automatic&&stationPhotoCache.get(String(stop.id)))return;
+        await acceptStationPhoto(stop,blob,{source:'railway-stations',
+          sourceUrl:`https://api.railway-stations.org/photoStationById/de/${encodeURIComponent(String(item.id))}`,
+          photographer:typeof photographer==='string'?photographer:'',
+          license:license?.name||String(licenseId||''),licenseUrl:license?.url||''});
+        if(!automatic)toast('Bahnhofsfoto geladen und lokal gespeichert.');
+      } catch(error) {
+        const explanation=error instanceof TypeError?'Bild-API durch Netzwerk oder CORS nicht erreichbar.':error.message;
+        if(!automatic)photoMessage(explanation,true);
+        else console.info('Automatisches Bahnhofsfoto nicht verfügbar:',explanation);
+      }
+    }
+    async function fileStationPhoto(file) {
+      const stop=stopById(state.modal?.id);if(!stop||!file)return;
+      photoMessage('Bild wird in WebP umgewandelt …');
+      try{await acceptStationPhoto(stop,file);toast('Haltestellenbild gespeichert.');}
+      catch(error){photoMessage(error.message,true);}
+    }
+    async function pasteStationPhoto() {
+      const stop=stopById(state.modal?.id);if(!stop)return;
+      if(!navigator.clipboard?.read){photoMessage('Zwischenablage nicht verfügbar; bitte eine Bilddatei auswählen oder HTTPS verwenden.',true);return;}
+      photoMessage('Lese Bild aus der Zwischenablage …');
+      try {
+        const items=await navigator.clipboard.read();
+        for(const item of items){
+          const mime=item.types.find(type=>type.startsWith('image/'));
+          if(mime){await acceptStationPhoto(stop,await item.getType(mime));toast('Bild aus der Zwischenablage gespeichert.');return;}
+        }
+        photoMessage('In der Zwischenablage ist kein Bild.',true);
+      }catch(error){photoMessage('Einfügen nicht möglich: '+error.message,true);}
+    }
+    async function removeStationPhoto() {
+      const stop=stopById(state.modal?.id);if(!stop)return;
+      try{await deleteStationPhoto(stop.id);photoMessage('Bild entfernt.');toast('Haltestellenbild entfernt.');}
+      catch(error){photoMessage(error.message,true);}
+    }
+    // DB-EVA explizit im Bearbeiten-Dialog ermitteln; vorhandene Eingabe wird nicht automatisch überschrieben.
+    async function findEvaForEdit() {
+      const stop=stopById(state.modal?.id),result=el('eva-search-results'),button=el('eva-lookup-btn');
+      if(!stop||!result)return;
+      if(!dbIsReady()){result.textContent='DB-Zugang nicht erreichbar. Bitte DB-Einstellungen prüfen.';return;}
+      result.textContent='Suche über die DB Timetables API …';if(button)button.disabled=true;
+      try{
+        const xml=await dbFetchXML('/station/'+encodeURIComponent(stop.name.trim()));
+        if(state.modal?.type!=='edit-city'||state.modal.id!==stop.id)return;
+        const matches=[...xml.querySelectorAll('station')].map(x=>({eva:x.getAttribute('eva'),name:x.getAttribute('name')}))
+          .filter(x=>/^\d{6,9}$/.test(x.eva||''));
+        const exact=matches.filter(x=>stationKey(x.name)===stationKey(stop.name));
+        const list=exact.length?exact:matches;
+        if(list.length===1){
+          const input=el('db-eva-input');if(input)input.value=list[0].eva;
+          result.textContent=`${list[0].name} · EVA ${list[0].eva} (bitte speichern)`;
+        }else if(list.length){
+          result.innerHTML='<span class="small-note">Mehrere Treffer. Passenden Bahnhof auswählen:</span>'+list.slice(0,15)
+            .map(x=>`<button type="button" data-action="choose-eva" data-eva="${esc(x.eva)}">${esc(x.name)} · EVA ${esc(x.eva)}</button>`).join('');
+        }else result.textContent='Keine EVA gefunden. Bitte die Nummer über den Link unten ermitteln.';
+      }catch(error){if(result)result.textContent='EVA-Suche fehlgeschlagen: '+(state.dbStatus||error.message);}
+      finally{if(button)button.disabled=false;}
+    }
+
+    // ---- Verlinkung der einzelnen Abfahrten/Ankünfte zur DB-Reiseauskunft. ----
+    function bahnSearchTime(ms) {
+      const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(ms));
+      const p=Object.fromEntries(parts.filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+      return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:00`;
+    }
+    function matchingArrivalRoute(entry,stop) {
+      const origin=stationKey(entry.provenance||entry.origin?.name||'');
+      const earlier=Array.isArray(entry.stopovers)?entry.stopovers:[];
+      const candidates=state.routes.filter(r=>r.to===stop.id&&isMode(entry,r.mode)).filter(r=>{
+        const from=stopById(r.from);
+        if(!from)return false;
+        return (origin&&origin===stationKey(from.name))||earlier.some(p=>sameStop(p.stop,from));
+      });
+      return candidates.length===1?candidates[0]:null;
+    }
+    function validTimetableStation(name) {
+      const value=String(name||'').trim();
+      return /^(?:ohne angabe|ziel unbekannt|herkunft unbekannt|unbekannt)$/i.test(value)?'':value;
+    }
+    function bahnSearchLink(entry,arrival,stop) {
+      // Ohne zugeordnete Favoritenverbindung ausschließlich Bahnhofsnamen aus
+      // dem Fahrplan verwenden. Automatisch erkannte, aber nicht favorisierte
+      // gespeicherte Haltestellen dürfen das Ziel NICHT überschreiben.
+      const favorite=arrival?matchingArrivalRoute(entry,stop):manualRouteFor(entry,stop);
+      const fromFavorite=favorite?stopById(favorite.from):null;
+      const toFavorite=favorite?stopById(favorite.to):null;
+      const boardStation=validTimetableStation(entry?._timetableStopName)||stop.name;
+      const timetableOrigin=validTimetableStation(entry?.provenance)
+        ||validTimetableStation(entry?.origin?.name)
+        ||validTimetableStation(entry?.stopovers?.[0]?.stop?.name);
+      const lastStop=Array.isArray(entry?.stopovers)?entry.stopovers[entry.stopovers.length-1]?.stop?.name:'';
+      const timetableTarget=validTimetableStation(entry?.destination?.name)
+        ||validTimetableStation(entry?.direction)
+        ||validTimetableStation(lastStop);
+      const origin=fromFavorite?.name||(arrival?timetableOrigin:boardStation);
+      const target=toFavorite?.name||(arrival?boardStation:timetableTarget);
+      // Bei einseitiger Datenlage wird nur das vorhandene Suchfeld vorbelegt.
+      const values=new URLSearchParams();
+      values.set('sts','false');
+      if(origin&&(!target||stationKey(origin)!==stationKey(target)))values.set('so',origin);
+      if(target)values.set('zo',target);
+      const ms=toTime(entry?.plannedWhen||entry?.plannedDeparture||entry?.when||entry?.arrival);
+      if(ms!=null)values.set('hd',bahnSearchTime(ms));
+      values.set('hza',arrival?'A':'D');
+      // Ohne DB-spezifische, gültige Orts-IDs nicht fälschlich eine sofortige Suche erzwingen.
+      return BAHN_SEARCH_URL+'#'+values.toString();
+    }
 
     function backupPayload() {
       return {
@@ -546,8 +916,8 @@
       dbResetCache();
       state.errors.clear();state.arrivalErrors.clear();state.timestamps.clear();state.planCache.clear();
       state.busy=false;state.migrating=false;state.pendingPriorityRefresh=false;state.lastRefresh=0;
-      state.activeStopId=null;state.view='home';state.pendingImport=null;
-      closeModal();renderApp();toast('Sicherung importiert. Reihenfolge und Verbindungen übernommen.');
+      state.pendingImport=null;
+      closeModal();showView('home');toast('Sicherung importiert. Reihenfolge und Verbindungen übernommen.');
       if(navigator.onLine && state.stops.length)migrateLegacyStops();
     }
     const appIsStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
@@ -643,6 +1013,7 @@
         platform:place.track||null,plannedPlatform:place.scheduledTrack||null,
         direction:item.headsign||item.tripTo?.name||'Ohne Angabe',
         provenance:arrival ? (stops[0]?.name||'Herkunft unbekannt') : null,
+        _timetableStopName:place.name||place.stop?.name||null,
         line:{name:motisLineName(item),id:`${item.mode||''}:${item.routeShortName||item.displayName||''}`,product:motisProduct(item)},
         tripId:item.tripId||null,
         cancelled:!!(item.cancelled||item.tripCancelled||place.cancelled),
@@ -1440,28 +1811,78 @@
       refreshAll(true);
       if (state.view==='detail' && state.activeStopId) loadArrivals(state.activeStopId);
     }
-    function showView(view) {
-      state.view=view; if (view !=='detail') state.activeStopId=null;
+    // Ein einziger History-Eintrag für jeden Nicht-Übersichts-View:
+    // Android-/Browser-Zurück kehrt von Detail und Verbindungen zur Übersicht
+    // zurück, statt durch mehrere zuvor besuchte App-Views zu blättern.
+    const NAV_HISTORY_KEY='haltestellen-view-v10';
+    let subviewHistoryActive=false;
+    function historyView(view,stopId=null) {
+      return {haltestellenNav:NAV_HISTORY_KEY,view,stopId};
+    }
+    function initViewHistory() {
+      const previous=window.history.state;
+      if(previous?.haltestellenNav===NAV_HISTORY_KEY) {
+        if(previous.view==='detail'&&stopById(previous.stopId)) {
+          state.view='detail';state.activeStopId=previous.stopId;subviewHistoryActive=true;
+        } else if(previous.view==='routes') {
+          state.view='routes';subviewHistoryActive=true;
+        } else {
+          state.view='home';subviewHistoryActive=false;
+        }
+        return;
+      }
+      try {window.history.replaceState(historyView('home'),'');}
+      catch(error){console.info('Browser-History nicht verfügbar:',error.message);}
+    }
+    function recordSubview(view,stopId=null) {
+      try {
+        if(subviewHistoryActive)window.history.replaceState(historyView(view,stopId),'');
+        else {window.history.pushState(historyView(view,stopId),'');subviewHistoryActive=true;}
+      } catch(error) {console.info('Browser-History nicht verfügbar:',error.message);}
+    }
+    function showView(view,fromHistory=false) {
+      if(!fromHistory) {
+        if(view==='home'&&subviewHistoryActive) {
+          window.history.back();
+          return;
+        }
+        if(view!=='home')recordSubview(view);
+      }
+      state.view=view;if(view!=='detail')state.activeStopId=null;
+      if(state.modal)closeModal();
       window.scrollTo({top:0,behavior:'auto'});
       renderApp();
     }
-    function openStop(id) {
+    function openStop(id,fromHistory=false) {
       const stop=stopById(id);if(!stop)return;
+      if(!fromHistory)recordSubview('detail',stop.id);
+      if(state.modal)closeModal();
       state.view='detail';state.activeStopId=stop.id;state.detailTab='departures';
       window.scrollTo({top:0,behavior:'auto'});
       renderApp();
       if (!state.boards.has(stop.id) && !state.loading.has(stop.id)) loadStop(stop.id);
       loadArrivals(stop.id);
     }
+    window.addEventListener('popstate',event=>{
+      const nav=event.state?.haltestellenNav===NAV_HISTORY_KEY?event.state:null;
+      subviewHistoryActive=Boolean(nav&&(nav.view==='routes'||nav.view==='detail'));
+      if(state.modal)closeModal();
+      if(nav?.view==='detail'&&stopById(nav.stopId))openStop(nav.stopId,true);
+      else showView(nav?.view==='routes'?'routes':'home',true);
+    });
     function removeStop(id) {
       const stop=stopById(id);if(!stop)return;
       if(!confirm(`„${stop.name}“ und zugehörige Verbindungen wirklich entfernen?`))return;
       state.stops=state.stops.filter(s=>s.id!==id);
       state.routes=state.routes.filter(r=>r.from!==id&&r.to!==id);
       state.boards.delete(id);state.arrivals.delete(id);state.projections.clear();state.planCache.clear();
+      void deleteStationPhoto(id).catch(e=>console.info('Bild konnte nicht entfernt werden:',e.message));
       state.dbStationLookup.delete(id);state.dbBoardCache.delete(id);
-      if(state.activeStopId===id){state.activeStopId=null;state.view='home';}
-      persist();renderApp();toast('Haltestelle entfernt.');
+      const removedActive=state.activeStopId===id;
+      if(removedActive){state.activeStopId=null;state.view='home';}
+      persist();
+      if(removedActive&&subviewHistoryActive)window.history.back();
+      renderApp();toast('Haltestelle entfernt.');
     }
     function removeRoute(id) {
       state.routes=state.routes.filter(r=>r.id!==id);state.planCache.delete(id);
@@ -1544,8 +1965,8 @@
         cardMain=`<div class="card-overline">NÄCHSTE ABFAHRT</div><div class="card-empty-state">${icon('clock')} ${state.boards.has(stop.id)?'Aktuell keine Abfahrt im Zeitfenster.':'Daten noch nicht geladen.'}</div>${renderCardArrival(null,null)}`;
       }
       return `<article class="stop-card${selection?.kind==='manual'?' priority-manual':selection?.kind==='automatic'?' priority-automatic':''}" data-index="${index%4}" data-stop-id="${esc(stop.id)}" title="Zum Sortieren lange gedrückt halten">
-        <div class="card-top"><div class="card-station"><h3 class="card-station-name">${esc(stop.name)}</h3>${!hasCityPrefix(stop)?`<p class="card-city">${icon('pin','sm')}${esc(stop.city || 'Ort unbekannt')}</p>`:''}</div>
-          <button type="button" class="icon-btn borderless" data-action="edit-city" data-id="${esc(stop.id)}" aria-label="Ort von ${esc(stop.name)} bearbeiten" title="Stadt bearbeiten">${icon('edit','sm')}</button></div>
+        <img class="station-photo-image" data-station-photo="${esc(stop.id)}" alt="" decoding="async"><div class="card-top"><div class="card-station"><h3 class="card-station-name">${esc(stop.name)}</h3>${!hasCityPrefix(stop)?`<p class="card-city">${icon('pin','sm')}${esc(stop.city || 'Ort unbekannt')}</p>`:''}</div>
+          <button type="button" class="icon-btn borderless" data-action="edit-city" data-id="${esc(stop.id)}" aria-label="Haltestelle ${esc(stop.name)} bearbeiten" title="Haltestelle bearbeiten">${icon('edit','sm')}</button></div>
         <button type="button" class="card-body-btn" data-action="open-stop" data-id="${esc(stop.id)}" aria-label="${esc(selection?.kind==='manual'?'Feste Verbindung':selection?.kind==='automatic'?'Direktverbindung':'Abfahrten und Ankünfte')}: ${esc(stop.name)}${selection?.target?' nach '+esc(selection.target.name):''}">${cardMain}</button>
       </article>`;
     }
@@ -1561,7 +1982,7 @@
         <div class="section-actions"><button type="button" class="btn primary" data-action="add-stop">${icon('plus','sm')} Hinzufügen</button></div></div>
         ${stops}${routeSummary}
         <section class="backup-panel" aria-label="Datensicherung"><div><h3>Datensicherung</h3>
-          <p>Haltestellen, Sortierung und Verbindungen lokal sichern oder wiederherstellen.</p></div>
+          <p>Haltestellen, Sortierung und Verbindungen als JSON sichern. Bilder bleiben separat in IndexedDB auf diesem Gerät.</p></div>
           <div class="backup-actions">
             <button type="button" class="btn small ghost" data-action="export-backup">${icon('download','sm')} Export</button>
             <button type="button" class="btn small ghost" data-action="import-backup">${icon('upload','sm')} Import</button>
@@ -1580,10 +2001,11 @@
       const manual=!arrival&&!isCancelled(entry)?manualRouteFor(entry,stop):null;
       const special=manual ? `Favorit nach ${esc(stopById(manual.to)?.name||'Ziel')}` : target? `Direkt nach ${esc(target.name)}` : entry._fromJourney?'Über Routenplanung':' ';
       const platform=livePlatform(entry);
-      return `<div class="board-row ${index===0?'highlight':''} ${isCancelled(entry)?'cancelled':''}">
-        <div><span class="line-badge ${lineClass(entry)}">${esc(lineName(entry))}</span></div>
+      const link=bahnSearchLink(entry,arrival,stop);
+      return `<a class="board-row ${index===0?'highlight':''} ${isCancelled(entry)?'cancelled':''}" href="${esc(link)}" target="_blank" rel="noopener noreferrer" title="Bei bahn.de nach dieser ${arrival?'Ankunft':'Abfahrt'} suchen" aria-label="${esc(`${lineName(entry)} ${arrival?'Ankunft aus':'Abfahrt nach'} ${destinationOf(entry,arrival)} um ${fmtTime(t)} bei bahn.de suchen`)}">
+        <div><span class="line-badge ${lineClass(entry)}" title="${esc(lineName(entry))}"><span class="badge-label">${esc(lineName(entry))}</span></span></div>
         <div class="board-middle"><div class="board-destination">${esc(destinationOf(entry,arrival))}</div><div class="board-meta"><span>${platform}</span>${special.trim()?`<span class="fav-via">${icon('star','sm')} ${special}</span>`:''}${entry._fromJourney?'<span>Routenplanung</span>':''}<span class="board-source">${esc(entry._dbRealtime?'DB-Prognose':entry._dbHasPrediction?'DB-Prognose ohne Sollvergleich':entry._realTime?'Transitous-Prognose':entry._dbSource?'DB-Fahrplan':'Transitous-Fahrplan')}</span></div></div>
-        <div class="board-when"><strong>${fmtTime(t)}</strong>${delayLabel(entry)}</div></div>`;
+        <div class="board-when"><strong>${fmtTime(t)}</strong>${delayLabel(entry)}</div></a>`;
     }
     function renderBoard(stop) {
       const arrival=state.detailTab==='arrivals';
@@ -1613,11 +2035,11 @@
       const selected=chooseDeparture(stop), dep=selected?.entry;
       const next=dep?fmtTime(timeOf(dep)):'–:–';
       const priority=selected?.kind==='manual'?'Feste Verbindung':selected?.kind==='automatic'?'Direktverbindung':'Nächste Fahrt';
-      return `<div class="detail-head"><div><h1>${esc(stop.name)}</h1><p>${icon('pin','sm')}${esc(stop.city||'Ort unbekannt')}</p></div>
-        <div class="detail-tools"><button type="button" class="icon-btn" data-action="edit-city" data-id="${esc(stop.id)}" aria-label="Stadt bearbeiten" title="Stadt bearbeiten">${icon('edit','sm')}</button>
-          <button type="button" class="icon-btn" data-action="remove-stop" data-id="${esc(stop.id)}" aria-label="Haltestelle entfernen" title="Haltestelle entfernen">${icon('trash','sm')}</button></div></div>
+      return `<div class="detail-head"><img class="station-photo-image" data-station-photo="${esc(stop.id)}" alt="" decoding="async"><a id="station-photo-credit" class="station-photo-credit" target="_blank" rel="noopener noreferrer" title="Bildnachweis öffnen"></a><div class="detail-heading"><h1>${esc(stop.name)}</h1><p>${icon('pin','sm')}${esc(stop.city||'Ort unbekannt')}</p></div>
+        <div class="detail-tools"><button type="button" class="icon-btn" data-action="edit-city" data-id="${esc(stop.id)}" aria-label="Haltestelle bearbeiten" title="Haltestelle bearbeiten">${icon('edit','sm')}</button>
+          <button type="button" class="icon-btn" data-action="remove-stop" data-id="${esc(stop.id)}" aria-label="Haltestelle entfernen" title="Haltestelle entfernen">${icon('trash','sm')}</button></div>
         <div class="detail-metrics">${renderMetric('Nächste Abfahrt',next,dep ? priority:'Noch keine Fahrt')}
-          ${renderMetric('Aktuelle Uhrzeit',fmtTime(Date.now()),'Lokale Zeit')}</div>
+          ${renderMetric('Aktuelle Uhrzeit',fmtTime(Date.now()),'Lokale Zeit')}</div></div>
         ${renderBoard(stop)}<div class="notice">${icon('info')}<div><strong>DB-Status für diesen Bahnhof:</strong> ${esc(state.dbDiagnostics.get(stop.id)?.message||(state.dbSettings.apiKey?'Noch keine DB-Bahnhofsdaten geladen.':'DB-Zugang nicht eingerichtet.'))}<br>Grau bedeutet: keine bestätigte Pünktlichkeitsprognose. Die angezeigte Zeit kann dennoch die beste bekannte Zeit sein. Angezeigte Zeiten bitte vor Fahrtantritt prüfen.</div></div>`;
     }
     function renderRoutes() {
@@ -1788,7 +2210,8 @@
       if(sortGesture){appRenderDeferred=true;return;}
       appRenderDeferred=false;
       const app=el('app');if(!app)return;
-      app.innerHTML=`<div class="app-layout">${renderSidebar()}<main class="main">${renderMobileHeader()}${renderTopline()}${state.view==='detail'?renderDetail():state.view==='routes'?renderRoutes():renderHome()}<footer class="api-attribution">Daten: <a href="https://transitous.org/" target="_blank" rel="noopener noreferrer">Transitous</a> · <a href="https://developers.deutschebahn.com/db-api-marketplace/apis/product/timetables" target="_blank" rel="noopener noreferrer">DB Timetables (CC BY 4.0)</a> · <a href="https://transitous.org/sources/" target="_blank" rel="noopener noreferrer">Datenquellen</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap-Mitwirkende</a><br>Gemeinschaftsdienst, nicht für kommerzielle Nutzung. Echtzeitdaten je nach Anbieter.</footer></main></div>${renderBottomNav()}`;
+      app.innerHTML=`<div class="app-layout">${renderSidebar()}<main class="main">${renderMobileHeader()}${renderTopline()}${state.view==='detail'?renderDetail():state.view==='routes'?renderRoutes():renderHome()}<footer class="api-attribution">Daten: <a href="https://transitous.org/" target="_blank" rel="noopener noreferrer">Transitous</a> · <a href="https://developers.deutschebahn.com/db-api-marketplace/apis/product/timetables" target="_blank" rel="noopener noreferrer">DB Timetables (CC BY 4.0)</a> · <a href="https://transitous.org/sources/" target="_blank" rel="noopener noreferrer">Datenquellen</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap-Mitwirkende</a><br>Gemeinschaftsdienst, nicht für kommerzielle Nutzung. Echtzeitdaten je nach Anbieter. Bahnhofsfotos: <a href="https://railway-stations.org/" target="_blank" rel="noopener noreferrer">railway-stations.org</a> (Bildlizenzen siehe Bildnachweis).</footer></main></div>${renderBottomNav()}`;
+      hydrateStationPhotos();
     }
     function openModal(type,id) {
       state.modal={type,id:id||null};state.searchToken++;
@@ -1870,7 +2293,7 @@
           <div class="backup-preview"><strong>${incoming.stops.length} Haltestellen</strong> in gespeicherter Reihenfolge<br>
           <strong>${incoming.routes.length} Verbindungen</strong><br>
           Prioritätszeitfenster: ± ${incoming.priorityMinutes} Minuten</div>
-          <p class="small-note">Vorhandene Daten bei Bedarf vorher als JSON exportieren. Der Import erfolgt ausschließlich im Browser.</p>
+          <p class="small-note">Vorhandene Daten bei Bedarf vorher als JSON exportieren. Bilder sind nicht Teil der JSON-Datei und werden nicht übertragen.</p>
           <div class="modal-actions"><button type="button" class="btn ghost" data-action="close-modal">Abbrechen</button>
             <button type="button" class="btn primary" data-action="confirm-import">${icon('upload','sm')} Daten ersetzen</button></div>`;
       } else if(type==='install-help') {
@@ -1896,7 +2319,18 @@
           <input class="form-input" id="city-input" autocomplete="off" maxlength="100" value="${esc(stop.city||'')}"></div>
           <div class="form-group"><label class="form-label" for="db-eva-input">DB-Bahnhofsnummer (EVA, optional)</label>
           <input class="form-input" id="db-eva-input" inputmode="numeric" autocomplete="off" maxlength="9" placeholder="z. B. 8013266" value="${esc(stop.evaNo||'')}">
-          <p class="small-note">Nur für die DB-Zugdaten. Bus- und Tram-Haltestellen können das Feld leer lassen.</p></div>
+          ${state.dbSettings.clientId&&state.dbSettings.apiKey?`<button type="button" id="eva-lookup-btn" class="btn small ghost" style="margin-top:9px" data-action="eva-lookup">${icon('search','sm')} EVA-Nummer über DB abfragen</button><div id="eva-search-results" class="eva-search-results" role="status"></div>`:''}
+          <p class="small-note">Nur für DB-Zugdaten. Bus und Tram können das Feld leer lassen. Nummer im Zweifel auf <a class="db-help-link" href="https://www.syssel.net/ril100/" target="_blank" rel="noopener noreferrer">syssel.net/ril100</a> suchen.</p></div>
+          <div class="form-group"><label class="form-label" for="photo-file-input">Haltestellenbild</label>
+            <div id="photo-edit-preview" class="photo-preview"><img id="photo-preview-image" alt="Vorschau des Haltestellenbildes"><span class="photo-preview-placeholder">Noch kein Bild</span></div>
+            <p class="small-note" id="photo-credit-info">Bild wird geprüft …</p>
+            <input class="photo-file-input" id="photo-file-input" type="file" accept="image/*" aria-label="Bilddatei auswählen">
+            <div class="photo-actions"><button type="button" class="btn small ghost" data-action="photo-paste">${icon('upload','sm')} Einfügen</button>
+              <button type="button" class="btn small ghost" data-action="photo-fetch">${icon('download','sm')} Fetch</button>
+              <button type="button" class="btn small ghost" id="photo-remove-btn" data-action="photo-remove" disabled>${icon('trash','sm')} Entfernen</button></div>
+            <p class="small-note">„Einfügen“ übernimmt ein Bild aus der Zwischenablage; „Fetch“ fragt railway-stations.org ab. Speicherung lokal als WebP (88 %), max. 512 px breit.</p>
+            <p class="photo-status" id="photo-status" role="status"></p>
+          </div>
           <div class="modal-actions"><button class="btn ghost" type="button" data-action="close-modal">Abbrechen</button><button class="btn primary" type="button" data-action="save-city">${icon('check','sm')} Speichern</button></div>`;
       }
       el('modal-root').innerHTML=`<div class="overlay" data-overlay="true"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
@@ -1904,6 +2338,7 @@
         <button type="button" class="icon-btn borderless" data-action="close-modal" aria-label="Dialog schließen">${icon('close')}</button></div>
         <div class="modal-body">${body}</div></section></div>`;
       if((type==='add-stop'||type==='relink-stop')&&!state.selectedCandidate) renderSearchResults();
+      if(type==='edit-city')ensureStationPhoto(state.modal.id);
     }
     function onSearch(value) {
       state.searchTerm=value;state.searchResults=[];state.searchToken++;
@@ -1931,6 +2366,7 @@
       const city=(el('city-input')?.value||guessCity(candidate)).trim().slice(0,100)||guessCity(candidate);
       if(old) {
         const oldId=old.id;
+        if(oldId!==id)void deleteStationPhoto(oldId).catch(error=>console.info(error.message));
         Object.assign(old,{id,name:String(candidate.name),city,lat:candidate.lat,lon:candidate.lon,api:'transitous',evaNo:null});
         state.errors.delete(oldId);
         for(const route of state.routes) {
@@ -1942,6 +2378,8 @@
       state.lastRefresh=Date.now();persist();closeModal();showView('home');
       toast(old?'Haltestelle erfolgreich neu zugeordnet.':'Haltestelle gespeichert.');
       loadStop(id);
+      // Katalog nach dem Anlegen prüfen, ohne das Speichern zu verzögern.
+      void fetchStationPhoto(stopById(id),true);
     }
     function saveCity() {
       const stop=stopById(state.modal?.id);if(!stop)return;
@@ -1974,7 +2412,7 @@
       if(event.target?.dataset?.overlay==='true'){closeModal();return;}
       const node=event.target.closest('[data-action]');if(!node)return;
       const action=node.dataset.action,id=node.dataset.id;
-      if(['nav','add-stop','add-route','open-stop','edit-city','relink-stop','remove-stop','remove-route','close-modal','back-search','select-candidate','save-stop','save-city','detail-tab','refresh','export-backup','import-backup','confirm-import','install-app','db-settings','db-save','db-test','db-clear'].includes(action)) event.preventDefault();
+      if(['nav','add-stop','add-route','open-stop','edit-city','relink-stop','remove-stop','remove-route','close-modal','back-search','select-candidate','save-stop','save-city','detail-tab','refresh','export-backup','import-backup','confirm-import','install-app','db-settings','db-save','db-test','db-clear','eva-lookup','choose-eva','photo-paste','photo-fetch','photo-remove'].includes(action)) event.preventDefault();
       switch(action) {
         case 'nav':showView(node.dataset.view);break;
         case 'add-stop':openModal('add-stop');break;
@@ -1989,6 +2427,11 @@
         case 'select-candidate':state.selectedCandidate=state.searchResults[Number(node.dataset.index)]||null;renderModal();break;
         case 'save-stop':saveCandidate();break;
         case 'save-city':saveCity();break;
+        case 'eva-lookup':findEvaForEdit();break;
+        case 'choose-eva':if(el('db-eva-input'))el('db-eva-input').value=node.dataset.eva||'';if(el('eva-search-results'))el('eva-search-results').textContent='EVA übernommen – zum Speichern bitte bestätigen.';break;
+        case 'photo-paste':pasteStationPhoto();break;
+        case 'photo-fetch':fetchStationPhoto(stopById(state.modal?.id),false);break;
+        case 'photo-remove':removeStationPhoto();break;
         case 'detail-tab':state.detailTab=node.dataset.tab;renderApp();break;
         case 'refresh':refreshNow();break;
         case 'export-backup':exportBackup();break;
@@ -2005,6 +2448,7 @@
       if(event.target.id==='station-search')onSearch(event.target.value);
     });
     document.addEventListener('change',event=>{
+      if(event.target.id==='photo-file-input'){const file=event.target.files?.[0];event.target.value='';if(file)fileStationPhoto(file);return;}
       if(event.target.id==='backup-file-input') {
         const file=event.target.files?.[0];
         event.target.value='';
@@ -2060,7 +2504,9 @@
       updateClocks();
       if(Date.now()-state.lastRefresh>=REFRESH_INTERVAL)refreshAll(false);
     },15000);
+    initViewHistory();
     renderApp();
+    if(state.view==='detail'&&state.activeStopId)loadArrivals(state.activeStopId);
     if(state.stops.length)migrateLegacyStops();
   })();
   </script>

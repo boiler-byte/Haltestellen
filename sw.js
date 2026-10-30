@@ -1,5 +1,5 @@
 /* Haltestellen v6 – offline app shell. No live traffic data are cached. */
-const CACHE_VERSION = 'haltestellen-v6-shell-1';
+const CACHE_VERSION = 'haltestellen-v6-shell-2';
 const SHELL_ASSETS = [
   './',
   './index.html',
