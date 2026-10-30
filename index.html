@@ -159,6 +159,9 @@
     .card-arrival strong { margin-left:auto; font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--muted-2); }
     .card-arrival.ontime strong { color:var(--accent); }
     .card-arrival.late strong { color:var(--red); }
+    .card-source-note { margin-top:5px; color:var(--muted-2); font-size:10px; line-height:1.4; }
+    .card-source-note.live { color:var(--blue); }
+    .board-source { color:var(--muted-2); }
     .muted-italic { color:var(--muted); font-size:13px; }
     .card-empty-state { flex:1; display:flex; align-items:center; gap:11px; color:var(--muted); font-size:13px; line-height:1.5; }
     .warn-strip { padding:10px 13px; background:#3a292c; border:1px solid #71414a; color:#f8b3b5; font-size:12px; border-radius:11px; margin-bottom:15px; }
@@ -450,7 +453,7 @@
       busy:false, migrating:false, planCache:new Map(), lastRefresh:0, lastApiRequestAt:null, pendingPriorityRefresh:false, searchTimer:null, toastTimer:null,
       pendingImport:null, dataRevision:0,
       dbSettings:readDBSettings(), dbStatus:'', dbUnavailable:false, dbError:'',
-      dbStationLookup:new Map(), dbPlanCache:new Map(), dbBoardCache:new Map(), dbInFlight:new Map()
+      dbStationLookup:new Map(), dbPlanCache:new Map(), dbBoardCache:new Map(), dbInFlight:new Map(), dbDiagnostics:new Map()
     };
     function persist() {
       try {localStorage.setItem(STORAGE_KEY, JSON.stringify({stops:state.stops,routes:state.routes,priorityMinutes:state.priorityMinutes}));}
@@ -681,12 +684,16 @@
       const actual=toTime(entry?.when ?? entry?.departure);
       const planned=toTime(entry?.plannedWhen ?? entry?.plannedDeparture);
       const value=actual??planned;
-      const live=Boolean((entry?._realTime || (actual!==null && planned!==null && Math.abs(actual-planned)>=30000)) && actual!==null && planned!==null);
+      // Die Normalisierer markieren erkannte Prognosen bereits mit _realTime.
+      // Sollzeit-Abweichungen aus zwei unterschiedlichen Quellen allein
+      // dürfen nicht als echte Verspätung interpretiert werden.
+      const live=Boolean((entry?._realTime || entry?._inferredPrediction) && actual!==null && planned!==null);
       const delay=live?Math.round((actual-planned)/60000):null;
       const status=live?(delay>0?'late':'ontime'):'unknown';
       const title=live
         ? (delay>0?`Abfahrt: ${delay} Min. später als Fahrplan (${entry?._inferredPrediction?'Prognose':'Echtzeit'})`:'Abfahrt: pünktlich (Echtzeit)')
-        : (value ? 'Abfahrtszeit ohne bestätigte Echtzeitinformation' : 'Abfahrtszeit unbekannt');
+        : (entry?._dbHasPrediction ? 'DB-Prognose vorhanden; zum Vergleich fehlt eine bestätigte Sollzeit.'
+          : value ? 'Abfahrtszeit ohne bestätigte Echtzeitinformation' : 'Abfahrtszeit unbekannt');
       return {time:fmtTime(value),status,title};
     }
     // Für Haltestellen-Kacheln: Ankunft am bevorzugten Ziel oder, falls
@@ -713,6 +720,20 @@
         :value?'Nur Fahrplanzeit bekannt; keine bestätigte Echtzeit-Ankunft.':'Ankunftszeit unbekannt.';
       return {time:fmtTime(value),status,label,title};
     }
+    function departureSourceLabel(entry,stop) {
+      if(entry && lineClass(entry)!=='rail')
+        return departureEstimate(entry).status==='unknown'?'Transitous · nur Fahrplan':'Transitous-Echtzeitprognose';
+      if(entry?._dbRealtime)return 'DB-Echtzeitprognose';
+      if(entry?._dbHasPrediction)return 'DB-Prognose · Sollzeit nicht bestätigt';
+      if(departureEstimate(entry).status!=='unknown')return 'Transitous-Echtzeitprognose';
+      const diagnostic=state.dbDiagnostics.get(stop.id);
+      if(diagnostic?.state==='ok')return 'DB geprüft · keine Prognose für diese Fahrt';
+      if(diagnostic?.state==='partial')return 'DB-Sollfahrplan · Live-Abfrage fehlgeschlagen';
+      if(diagnostic?.state==='noeva')return 'DB-Bahnhof nicht zugeordnet';
+      if(diagnostic?.state==='error'||state.dbUnavailable)return 'DB nicht verfügbar · nur Fahrplan';
+      if(state.dbSettings.apiKey)return 'DB-Abfrage ausstehend · nur Fahrplan';
+      return 'Transitous · nur Fahrplan';
+    }
     function renderCardArrival(entry, target) {
       const arrival=arrivalEstimate(entry,target);
       return `<div class="card-arrival ${arrival.status}" title="${esc(arrival.title)}" aria-label="${esc(arrival.label+': '+arrival.time+'. '+arrival.title)}">${icon('clock','sm')}<span class="card-arrival-label">${esc(arrival.label)}</span><strong>${esc(arrival.time)}</strong></div>`;
@@ -720,7 +741,8 @@
     function delayLabel(entry) {
       if (isCancelled(entry)) return '<span class="delay cancel">Fällt aus</span>';
       const delay = entry?.delay;
-      if (delay === null || delay === undefined || !Number.isFinite(Number(delay))) return '<span class="delay unknown">Fahrplan</span>';
+      if (delay === null || delay === undefined || !Number.isFinite(Number(delay)))
+        return entry?._dbHasPrediction?'<span class="delay unknown">Prognose ohne Sollvergleich</span>':'<span class="delay unknown">Fahrplan</span>';
       const min = Math.round(Number(delay)/60);
       if (min >= 1) return `<span class="delay late">+${min} Min Verspätung</span>`;
       if (min <= -1) return `<span class="delay">${min} Min früher</span>`;
@@ -821,7 +843,7 @@
       return Boolean(state.dbSettings.clientId && state.dbSettings.apiKey && !state.dbUnavailable && navigator.onLine);
     }
     function dbResetCache() {
-      state.dbStationLookup.clear();state.dbPlanCache.clear();state.dbBoardCache.clear();state.dbInFlight.clear();
+      state.dbStationLookup.clear();state.dbPlanCache.clear();state.dbBoardCache.clear();state.dbInFlight.clear();state.dbDiagnostics.clear();
       state.dbUnavailable=false;state.dbError='';state.dbStatus='';
     }
     async function dbAcquireSlot() {
@@ -904,11 +926,22 @@
         const chosen=exact.length===1?exact[0]:null;
         const eva=chosen?.eva||null;
         state.dbStationLookup.set(stop.id,eva);
-        // Uneindeutige oder unpassende Bahnhöfe nicht einfach zuordnen.
+        // Keinen anderen Bahnhof allein aufgrund eines ähnlichen Namens zuordnen.
         if(eva){stop.evaNo=eva;persist();}
+        else {
+          const message=`${stop.name}: keine eindeutige DB-EVA gefunden. Im Bearbeiten-Dialog die EVA-Nummer eintragen.`;
+          state.dbDiagnostics.set(stop.id,{state:'noeva',message});
+          state.dbStatus=`DB: ${message}`;
+        }
         return eva;
       } catch(error) {
-        if(error?.status===404){state.dbStationLookup.set(stop.id,null);return null;}
+        if(error?.status===404){
+          state.dbStationLookup.set(stop.id,null);
+          const message=`${stop.name}: Bahnhof in DB Timetables nicht gefunden. EVA-Nummer prüfen.`;
+          state.dbDiagnostics.set(stop.id,{state:'noeva',message});
+          state.dbStatus=`DB: ${message}`;
+          return null;
+        }
         throw error;
       }
     }
@@ -945,17 +978,24 @@
       for(const record of records.values()) {
         const tl=record.tl,category=String(tl.c||'Zug').toUpperCase();
         const line=String(tl.l||'').trim(),number=String(tl.n||'').trim();
-        const name=line && !norm(line).startsWith(norm(category)) ? `${category} ${line}`
-          : line || (number?`${category} ${number}`:category);
-        const product=/^(ICE|IC|EC|EN|NJ|RJ|TGV|FLX)/.test(category)?'nationalExpress'
-          : /^RE/.test(category)?'regionalExpress':/^S$/.test(category)?'suburban':'regional';
+        // Bei der DB kann tl.c z. B. "DPN" lauten, während tl.l "RE 4"
+        // enthält. Die öffentlich sichtbare Linie ist für die Zuordnung wichtiger.
+        const lineIsPublic=/^(?:ICE|IC|EC|EN|NJ|RJ|TGV|FLX|RE|RB|IRE|S|MEX|REX)\s*[- ]?\s*\d/i.test(line);
+        const name=line ? (lineIsPublic || norm(line).startsWith(norm(category)) ? line : `${category} ${line}`)
+          : (number?`${category} ${number}`:category);
+        const product=/^(?:ICE|IC|EC|EN|NJ|RJ|TGV|FLX)\b/i.test(name)?'nationalExpress'
+          : /^(?:RE|IRE|REX|MEX)\s*\d/i.test(name)?'regionalExpress'
+          : /^S\s*\d/i.test(name)?'suburban':'regional';
         for(const [tag,arrival,key] of [['dp',false,'departures'],['ar',true,'arrivals']]) {
           const ev=record[tag];
-          const planned=dbTimeToISO(ev.pt||ev.ct),actual=dbTimeToISO(ev.ct)||planned;
+          const plannedFromDB=dbTimeToISO(ev.pt),forecastFromDB=dbTimeToISO(ev.ct);
+          const planned=plannedFromDB||forecastFromDB,actual=forecastFromDB||planned;
           if(!planned||!actual)continue;
           const path=String(ev.cpth||ev.ppth||'').split('|').map(x=>x.trim()).filter(Boolean);
           const platform=ev.cp||ev.pp||null,plannedPlatform=ev.pp||null;
-          const live=Boolean(ev.ct);
+          // "ct" bedeutet Prognose; "pt" ist zum Vergleich nötig. Ein Zug,
+          // der nur mit "ct" auftaucht, darf nicht fälschlich grün erscheinen.
+          const live=Boolean(forecastFromDB&&plannedFromDB);
           const delta=live?Math.round((toTime(actual)-toTime(planned))/1000):null;
           const entry={when:actual,plannedWhen:planned,delay:delta,platform,plannedPlatform,
             line:{name,id:`db:${record.id}`,product},
@@ -963,7 +1003,9 @@
             provenance:arrival?(path[0]||'Herkunft unbekannt'):null,
             stopovers:arrival?[]:path.map(p=>({stop:{id:null,name:p},arrival:null,plannedArrival:null,_realTime:null})),
             cancelled:String(ev.cs||'').toLowerCase()==='c',
-            _realTime:live,_dbId:record.id,_dbSource:true,_dbPlatformChanged:Boolean(ev.cp&&ev.pp&&norm(ev.cp)!==norm(ev.pp))};
+            _realTime:live,_dbRealtime:live,_dbHasPrediction:Boolean(forecastFromDB),
+            _dbHasPlan:Boolean(plannedFromDB),_dbId:record.id,_dbSource:true,
+            _dbPlatformChanged:Boolean(ev.cp&&ev.pp&&norm(ev.cp)!==norm(ev.pp))};
           result[key].push(entry);
         }
       }
@@ -991,26 +1033,52 @@
           catch(error){if(error?.status===429)break;if(state.dbUnavailable)break;console.info('DB-Sollfahrplan nicht verfügbar',error.message);}
         }
         if(!dbIsReady())return null;
-        let changes=null;
+        let changes=null,changesError=null;
         try {changes=await dbFetchXML('/fchg/'+eva);}
-        catch(error){if(state.dbUnavailable)return null;console.info('DB-Fahrplanänderungen nicht verfügbar',error.message);}
-        if(!plans.length&&!changes)return null;
+        catch(error){
+          if(state.dbUnavailable)return null;
+          changesError=error;
+          console.info('DB-Fahrplanänderungen nicht verfügbar',error.message);
+        }
+        if(!plans.length&&!changes){
+          const message=`${stop.name} (EVA ${eva}): weder Fahrplan noch Änderungen verfügbar.`;
+          state.dbDiagnostics.set(stop.id,{state:'empty',message});state.dbStatus=`DB: ${message}`;
+          return null;
+        }
         const board=dbParseTimetable(plans,changes);
+        const departures=board.departures.length;
+        const forecasts=board.departures.filter(e=>e._dbHasPrediction).length;
+        const message=changesError
+          ? `${stop.name} (EVA ${eva}): DB-Sollfahrplan geladen, aber /fchg nicht erreichbar${changesError.status?` (HTTP ${changesError.status})`:''}. Keine DB-Echtzeitdaten.`
+          : `${stop.name} (EVA ${eva}): ${departures} DB-Zugabfahrten, ${forecasts} mit Prognose.`;
+        state.dbDiagnostics.set(stop.id,{state:changesError?'partial':'ok',message,eva,departures,forecasts,at:Date.now()});
         state.dbBoardCache.set(stop.id,{at:Date.now(),board});
-        state.dbStatus=`DB-Bahnhofsdaten geladen · ${stop.name}`;
+        state.dbStatus=`DB: ${message}`;
         return board;
       })().finally(()=>state.dbInFlight.delete(stop.id));
       state.dbInFlight.set(stop.id,promise);
       return promise;
+    }
+    function trainLineKey(entry) {
+      // RE4, RE 4 und "DPN RE 4" meinen dieselbe Linie. Nummernteile
+      // bleiben erhalten, damit verschiedene Züge nicht vermischt werden.
+      const name=norm(lineName(entry));
+      const m=name.match(/(?:^|\s)(ice|ic|ec|en|nj|rj|tgv|flx|ire|rex|mex|re|rb|s)\s*(\d+[a-z]?)(?=\s|$)/i);
+      return m?m[1]+m[2]:'';
     }
     function dbMatchScore(original,db) {
       if(lineClass(original)!=='rail'||lineClass(db)!=='rail')return -1;
       const p1=scheduledTimeOf(original),p2=scheduledTimeOf(db);
       if(p1==null||p2==null)return -1;
       const diff=Math.abs(p1-p2);
-      if(diff>120000)return -1;
+      if(diff>5*60000)return -1;
+      const keyA=trainLineKey(original),keyB=trainLineKey(db);
+      if(keyA&&keyB)return keyA===keyB?500-Math.round(diff/1000):-1;
+      // Wenn nur eine Quelle eine präzise Liniennummer liefert, nicht blind
+      // über Zeit und Endbahnhof einem möglicherweise anderen Zug zuordnen.
+      if(keyA||keyB)return -1;
       const a=norm(lineName(original)).replace(/\s/g,''),b=norm(lineName(db)).replace(/\s/g,'');
-      if(a && b && a===b)return 100-Math.round(diff/1000);
+      if(a&&a===b&&a!=='zug'&&a!=='opnv')return 400-Math.round(diff/1000);
       const dst1=stationKey(original.direction),dst2=stationKey(db.direction);
       if(diff<=45000&&dst1&&dst1===dst2)return 40-Math.round(diff/1000);
       return -1;
@@ -1018,14 +1086,20 @@
     function dbMergeEntries(original,extra) {
       // DB-Prognose hat Vorrang. Ein reiner DB-Sollfahrplan überschreibt
       // vorhandene, bestätigte Transitous-Echtzeitinformationen nicht.
-      const useDBTime=extra._realTime && toTime(extra.when)!=null;
-      const planned=extra.plannedWhen||original.plannedWhen;
+      const useDBTime=Boolean(extra._dbHasPrediction&&toTime(extra.when)!=null);
+      // Falls /fchg nur ct liefert, bleibt die vorhandene Transitous-Sollzeit
+      // Referenz. Ohne irgendeine Sollzeit niemals "pünktlich" behaupten.
+      const planned=useDBTime
+        ? ((extra._dbHasPlan?extra.plannedWhen:null)||original.plannedWhen||extra.plannedWhen)
+        : (original.plannedWhen||extra.plannedWhen);
       const actual=useDBTime?extra.when:(original.when||extra.when);
+      const dbComparable=useDBTime&&Boolean(extra._dbHasPlan||toTime(original.plannedWhen)!=null);
       const platform=extra._dbPlatformChanged?extra.platform:
         (original.platform||extra.platform||original.plannedPlatform);
       return {...original,when:actual,plannedWhen:planned,
-        delay:useDBTime?Math.round((toTime(actual)-toTime(planned))/1000):original.delay,
-        _realTime:useDBTime||original._realTime,
+        delay:dbComparable?Math.round((toTime(actual)-toTime(planned))/1000):(useDBTime?null:original.delay),
+        _realTime:dbComparable||(!useDBTime&&original._realTime),
+        _dbRealtime:dbComparable,_dbHasPrediction:useDBTime,
         _inferredPrediction:useDBTime?false:original._inferredPrediction,
         platform,plannedPlatform:extra.plannedPlatform||original.plannedPlatform,
         cancelled:extra.cancelled||original.cancelled,_dbSource:true};
@@ -1048,7 +1122,11 @@
       if(!dbIsReady())return;
       try {
         const db=await dbLoadBoard(stop);
-        if(!db||revision!==state.dataRevision||!stopById(id))return;
+        if(!db){
+          if(state.dbUnavailable)state.dbDiagnostics.set(stop.id,{state:'error',message:state.dbStatus});
+          return;
+        }
+        if(revision!==state.dataRevision||!stopById(id))return;
         const map=arrival?state.arrivals:state.boards;
         if(!map.has(id))return;
         map.set(id,dbOverlayBoard(map.get(id),arrival?db.arrivals:db.departures));
@@ -1056,6 +1134,7 @@
       } catch(error) {
         if(!state.dbUnavailable && error?.status===429)state.dbStatus='DB-Anfragelimit erreicht. Transitous bleibt aktiv.';
         else if(!state.dbUnavailable)state.dbStatus='DB momentan nicht verfügbar. Transitous bleibt aktiv.';
+        state.dbDiagnostics.set(stop.id,{state:'error',message:state.dbStatus||'DB-Daten nicht abrufbar.'});
         console.info('DB-Daten nicht verfügbar, Transitous bleibt aktiv:',error.message);
         renderApp();
       }
@@ -1092,15 +1171,29 @@
     }
     async function dbTestSettings() {
       if(!saveDBSettings())return;
-      const label=el('db-test-result');if(label)label.textContent='DB-Zugang wird geprüft …';
+      const label=el('db-test-result');if(label)label.textContent='DB-Zugang, Bahnhofszuordnung und Änderungsdaten werden geprüft …';
+      const stop=state.stops.find(s=>s.api==='transitous');
       try {
-        const test=await dbFetchXML('/station/'+encodeURIComponent(state.stops[0]?.name||'Wismar'));
+        const test=await dbFetchXML('/station/'+encodeURIComponent(stop?.name||'Wismar'));
         const n=test.querySelectorAll('station').length;
-        state.dbStatus=`DB-Browserzugriff erfolgreich (${n} Bahnhofstreffer).`;
-        if(label)label.textContent=`DB erreichbar. ${n} Bahnhofstreffer. Zugdaten werden beim Aktualisieren ergänzt.`;
-        toast('DB-Zugriff erfolgreich.');
+        let message=`DB-Zugang erreichbar: ${n} Bahnhofstreffer.`;
+        if(stop){
+          const eva=await dbGetEva(stop);
+          if(!eva)message+=` Für „${stop.name}“ keine eindeutige DB-EVA. Bitte die EVA-Nummer bei der Haltestelle eintragen.`;
+          else {
+            const board=await dbLoadBoard(stop);
+            if(state.dbUnavailable)throw new Error(state.dbStatus||'DB-Browserzugriff fehlgeschlagen.');
+            const diagnostic=state.dbDiagnostics.get(stop.id);
+            message+=board?` ${diagnostic?.message||'Bahnhofsdaten geladen.'}`
+              :` ${diagnostic?.message||'Für diesen Bahnhof keine Zugdaten erhalten.'}`;
+          }
+        }
+        state.dbStatus=`DB: ${message}`;
+        if(label)label.textContent=message;
+        toast('DB-Test abgeschlossen; Details im Dialog prüfen.');
+        if(state.stops.length)refreshAll(true);
       } catch(error) {
-        const description=state.dbStatus|| (error?.status?`DB HTTP ${error.status}`:error.message);
+        const description=state.dbStatus||(error?.status?`DB HTTP ${error.status}`:error.message);
         if(label)label.textContent=`DB-Test fehlgeschlagen: ${description}`;
         toast('DB-Test fehlgeschlagen. Transitous bleibt aktiv.',true);
       }
@@ -1439,7 +1532,8 @@
         cardMain=`${selection.kind==='normal'?'<div class="card-overline">NÄCHSTE ABFAHRT</div>':''}
           <div class="card-main-row"><span class="mins-big" data-time-countdown="${timeOf(dep)}">${remaining<=0?'Jetzt':remaining}</span>${remaining>0?'<span class="mins-unit">Minuten</span>':''}${renderCardPlatform(dep)}</div>
           <div class="card-trip"><span class="line-badge ${lineClass(dep)}">${esc(lineName(dep))}</span>${priority}<span class="trip-direction">${esc(destinationOf(dep))}</span><span class="trip-time ${depTime.status}" title="${esc(depTime.title)}" aria-label="${esc('Abfahrt '+depTime.time+'. '+depTime.title)}">${esc(depTime.time)}</span></div>
-          ${renderCardArrival(dep,selection.target)}`;
+          ${renderCardArrival(dep,selection.target)}
+          <div class="card-source-note ${depTime.status!=='unknown'?'live':''}" title="${esc(state.dbDiagnostics.get(stop.id)?.message||depTime.title)}">${esc(departureSourceLabel(dep,stop))}</div>`;
       } else if(!navigator.onLine) {
         cardMain=`<div class="card-empty-state">${icon('info','sm')} Offline – derzeit keine Live-Abfahrten</div>`;
       } else if(loading && !state.boards.has(stop.id)) {
@@ -1488,7 +1582,7 @@
       const platform=livePlatform(entry);
       return `<div class="board-row ${index===0?'highlight':''} ${isCancelled(entry)?'cancelled':''}">
         <div><span class="line-badge ${lineClass(entry)}">${esc(lineName(entry))}</span></div>
-        <div class="board-middle"><div class="board-destination">${esc(destinationOf(entry,arrival))}</div><div class="board-meta"><span>${platform}</span>${special.trim()?`<span class="fav-via">${icon('star','sm')} ${special}</span>`:''}${entry._fromJourney?'<span>Routenplanung</span>':''}</div></div>
+        <div class="board-middle"><div class="board-destination">${esc(destinationOf(entry,arrival))}</div><div class="board-meta"><span>${platform}</span>${special.trim()?`<span class="fav-via">${icon('star','sm')} ${special}</span>`:''}${entry._fromJourney?'<span>Routenplanung</span>':''}<span class="board-source">${esc(entry._dbRealtime?'DB-Prognose':entry._dbHasPrediction?'DB-Prognose ohne Sollvergleich':entry._realTime?'Transitous-Prognose':entry._dbSource?'DB-Fahrplan':'Transitous-Fahrplan')}</span></div></div>
         <div class="board-when"><strong>${fmtTime(t)}</strong>${delayLabel(entry)}</div></div>`;
     }
     function renderBoard(stop) {
@@ -1524,7 +1618,7 @@
           <button type="button" class="icon-btn" data-action="remove-stop" data-id="${esc(stop.id)}" aria-label="Haltestelle entfernen" title="Haltestelle entfernen">${icon('trash','sm')}</button></div></div>
         <div class="detail-metrics">${renderMetric('Nächste Abfahrt',next,dep ? priority:'Noch keine Fahrt')}
           ${renderMetric('Aktuelle Uhrzeit',fmtTime(Date.now()),'Lokale Zeit')}</div>
-        ${renderBoard(stop)}<div class="notice">${icon('info')}<div>Daten von Transitous und, falls eingerichtet und erreichbar, aus DB Timetables. Einzelne Echtzeitinformationen oder Zwischenhalte können fehlen. Angezeigte Zeiten bitte vor Fahrtantritt prüfen.</div></div>`;
+        ${renderBoard(stop)}<div class="notice">${icon('info')}<div><strong>DB-Status für diesen Bahnhof:</strong> ${esc(state.dbDiagnostics.get(stop.id)?.message||(state.dbSettings.apiKey?'Noch keine DB-Bahnhofsdaten geladen.':'DB-Zugang nicht eingerichtet.'))}<br>Grau bedeutet: keine bestätigte Pünktlichkeitsprognose. Die angezeigte Zeit kann dennoch die beste bekannte Zeit sein. Angezeigte Zeiten bitte vor Fahrtantritt prüfen.</div></div>`;
     }
     function renderRoutes() {
       const routes=state.routes.length?`<div class="route-list">${state.routes.map(r=>`<article class="route-card">
